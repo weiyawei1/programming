@@ -162,7 +162,7 @@ def bound_check_revise(X,n,c):
 
 
 # =============================================================================
-#     NMM_func: 基于邻域社区的节点社区修正操作函数【1:"NOMM",2:"NMM",3:"MNMM",4:"NWMM"】
+#     NMM_funcs: 基于邻域社区的节点社区修正操作函数【1:"NOMM",2:"NMM",3:"MNMM",4:"NWMM"】
 #     pop: 种群
 #     c: 社区划分的数目
 #     n: 网络节点数目
@@ -172,7 +172,7 @@ def bound_check_revise(X,n,c):
 #     threshold_value: 阈值
 #     return: nmm_pop, nmm_fit nmm 种群, 适应度值
 # =============================================================================
-def NMM_func(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_flag):
+def NMM_funcs(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_flag):
     nmm_pop = copy.deepcopy(pop)
     nmm_fit = []
     if nmm_flag=="NOMM":
@@ -237,10 +237,10 @@ def MNMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fi
         pick = seeds
         # 寻找不合理划分的节点和其对应的邻居节点
         unreasonableNodes = []
-        find_unreasonableNodes_motifadd_V2(unreasonableNodes,pick,nmm_pop[:,:,i],adj,motif_adj,c,n,threshold_value)
+        MNMM_CD_func(unreasonableNodes,pick,nmm_pop[:,:,i],adj,motif_adj,c,n,threshold_value)
         # 获得该节点应划分的社区号
         node_cnos = []
-        find_node_cno_motifadd(node_cnos,unreasonableNodes,nmm_pop[:,:,i],adj,motif_adj)
+        MNMM_P_func(node_cnos,unreasonableNodes,nmm_pop[:,:,i],adj,motif_adj)
 #        print("len=",len(node_cnos))
         # 修改该节点的隶属度值，对该节点重新划分社区
         unreasonableNodes_revise(node_cnos,nmm_pop,i)
@@ -259,22 +259,7 @@ def MNMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fi
 #     return: nmm_pop, nmm_fit nmm种群, 适应度值
 # =============================================================================
 def NWMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fit):
-    for i in range(NP):
-        seeds = [i for i in range(n)]
-#        rd.shuffle(seeds)
-#        pick = seeds[:rd.randint(1, n)] # 随机选择一定数量的节点
-        pick = seeds
-        # 寻找不合理划分的节点和其对应的邻居节点
-        unreasonableNodes = []
-        find_unreasonableNodes_motifadd_V2(unreasonableNodes,pick,nmm_pop[:,:,i],adj,motif_adj,c,n,threshold_value)
-        # 获得该节点应划分的社区号
-        node_cnos = []
-        find_node_cno_motifadd(node_cnos,unreasonableNodes,nmm_pop[:,:,i],adj,motif_adj)
-#        print("len=",len(node_cnos))
-        # 修改该节点的隶属度值，对该节点重新划分社区
-        unreasonableNodes_revise(node_cnos,nmm_pop,i)
-    # 计算该种群的适应度函数值    
-    fit_Qs(nmm_fit,nmm_pop,adj,n,c,NP,Q_flag)   #适应度函数值计算 
+    pass
 
 # =============================================================================
 #     find_unreasonableNodes: 寻找基于边的不合理划分的节点
@@ -322,50 +307,9 @@ def NMM_P_func(node_cno_list,nodes,Xi,adj):
 #        node_cno_list.append((i,rd.choice(j_nodes_c)))  # choice() 依概率选择
         i_c = np.argmax(np.bincount(j_nodes_c)) # 直接选择概率最大的社区作为i节点划分的社区
         node_cno_list.append((i,i_c))
-        
-#def NMM_P_func(node_cno_list,nodes,Xi,adj):
-#    for i in nodes:
-#        # 获得 i 基于边的邻接节点
-#        j_nodes = np.nonzero(adj[i,:])[1]
-#        # 获得邻居节点 j 所在的社区       
-#        j_nodes_c = np.argmax(Xi[:,j_nodes], axis=0)
-#        # print("j_nodes_c=",j_nodes_c)
-#        node_cno_list.append((i,rd.choice(j_nodes_c)))  # choice() 依概率选择
-
-
-# =============================================================================
-#     find_unreasonableNodes_motifadd_V1: 寻找基于边的不合理划分的节点
-#     pick: 一定数量的随机节点
-#     Xi: 第i个个体的隶属度矩阵
-#     adj: 加权网络的临界矩阵
-#     c: 社区划分的数目
-#     n: 网络节点数目
-#     threshold_value: 阈值
-#     reutrn: unreasonableNodes 划分不合理的节点集合
-# =============================================================================
-def find_unreasonableNodes_motifadd_V1(unreasonableNodes,pick,Xi,adj,motif_adj,c,n,threshold_value):
-    for i in pick:
-        # 获得节点 i 所在的社区
-        i_node_c = np.argmax(Xi[:,i])
-        # 寻找节点 i 基于边的邻居节点 j_e_nodes
-        j_e_nodes = np.nonzero(adj[i,:])[1]
-        # 寻找节点 i 基于模体的邻居节点 j_m_nodes
-        j_m_nodes = np.nonzero(motif_adj[i,:])[1]
-        # 获得节点 i 的所有邻居节点 j_nodes
-        j_nodes = list(set(j_e_nodes) | set(j_m_nodes))
-        # 如果 i 节点无邻居节点，则跳过该节点
-        if len(j_nodes) == 0:
-            continue
-        # 获得邻居节点 j 所在的社区       
-        j_nodes_c = np.argmax(Xi[:,j_nodes], axis=0)
-        # i_c != j_c
-        cd_i = np.where(j_nodes_c != i_node_c)[0].shape[0] / len(j_nodes)
-        # 如果节点 i 划分不合理程度大于阈值，则返回 i
-        if cd_i > threshold_value :
-            unreasonableNodes.append(i)
             
 # =============================================================================
-#     find_unreasonableNodes_motifadd_V2: 寻找基于模体权重的不合理划分的节点
+#     MNMM_CD_func: 寻找基于模体权重的不合理划分的节点
 #     pick: 一定数量的随机节点
 #     Xi: 第i个个体的隶属度矩阵
 #     adj: 加权网络的临界矩阵
@@ -374,7 +318,7 @@ def find_unreasonableNodes_motifadd_V1(unreasonableNodes,pick,Xi,adj,motif_adj,c
 #     threshold_value: 阈值
 #     reutrn: unreasonableNodes 划分不合理的节点集合
 # =============================================================================
-def find_unreasonableNodes_motifadd_V2(unreasonableNodes,pick,Xi,adj,motif_adj,c,n,threshold_value):
+def MNMM_CD_func(unreasonableNodes,pick,Xi,adj,motif_adj,c,n,threshold_value):
     for i in pick:
         # 获得节点 i 所在的社区
         i_node_c = np.argmax(Xi[:,i])
@@ -406,7 +350,7 @@ def find_unreasonableNodes_motifadd_V2(unreasonableNodes,pick,Xi,adj,motif_adj,c
             unreasonableNodes.append(i)
 
 # =============================================================================
-#     find_node_cno_motifadd: 寻找节点应划分的社区号
+#     MNMM_P_func: 寻找节点应划分的社区号
 #     nodes: 未正确划分的节点
 #     Xi: 第i个个体的隶属度矩阵
 #     adj: 加权网络的临界矩阵
@@ -414,7 +358,7 @@ def find_unreasonableNodes_motifadd_V2(unreasonableNodes,pick,Xi,adj,motif_adj,c
 #     n: 网络节点数目
 #     return: 节点社区归属度字典{i:[(ck,attrk)]}
 # =============================================================================
-def find_node_cno_motifadd(node_cnos,nodes,Xi,adj,motif_adj):
+def MNMM_P_func(node_cnos,nodes,Xi,adj,motif_adj):
         
     for i in nodes:
         # 初始化 i 节点对社区 c 的概率
@@ -441,7 +385,7 @@ def find_node_cno_motifadd(node_cnos,nodes,Xi,adj,motif_adj):
                     nodes.append(j_nodes[index])
             c_jnodes[c] = nodes         
         # print("j_nodes_c=",j_nodes_c)
-        attr_sum = 0.0  # C 个社区的归属度之和
+        attr_sum = 0.0  # C个社区的归属度之和
         for c in clist:
             # 计算节点 i 对社区 c 的归属度
             Si = np.sum(motif_adj[i,:])
@@ -462,8 +406,8 @@ def find_node_cno_motifadd(node_cnos,nodes,Xi,adj,motif_adj):
                 
             c_ps.append((c, p))
 
-        #   依概率选择
-        c = choice_by_probability(c_ps)
+#        c = choice_by_probability(c_ps) #依概率选择
+        c = np.argmax(np.bincount(c_ps)) # 直接选择概率最大的社区作为i节点划分的社区
         node_cnos.append((i,c))  
         
 # =============================================================================
@@ -520,38 +464,6 @@ def pop_inherit(n, c, NP, Path):
     for i in range(NP):
         pop[:,:,i] = X
     return pop
-
-
-"""
-# =============================================================================
-#     MNMM_V1: 基于邻居节点的社区修正（基于边邻居节点和模体邻居节点）
-#     nmm_pop: 种群
-#     c: 社区划分的数目
-#     n: 网络节点数目
-#     NP： 种群中的个体数
-#     adj: 无权网络的邻接矩阵
-#     motif_adj: 模体加权网络的邻接矩阵
-#     threshold_value: 阈值
-#     return: nmm_pop, nmm_fit nmm种群, 适应度值
-# =============================================================================
-def MNMM_V1(pop, n, c, NP, adj, motif_adj, threshold_value,Q_flag):
-    nmm_pop = copy.deepcopy(pop)
-    for i in range(NP):
-        seeds = [i for i in range(n)]
-        rd.shuffle(seeds)
-        pick = seeds[:rd.randint(1, n)] # 随机选择一定数量的节点
-        # 寻找不合理划分的节点和其对应的邻居节点
-        unreasonableNodes = []
-        find_unreasonableNodes_motifadd_V1(unreasonableNodes,pick,nmm_pop[:,:,i],adj,motif_adj,c,n,threshold_value)
-        # 获得该节点应划分的社区号
-        node_cnos = []
-        find_node_cno_motifadd(node_cnos,unreasonableNodes,nmm_pop[:,:,i],adj,motif_adj)
-        # 修改该节点的隶属度值，对该节点重新划分社区
-        unreasonableNodes_revise(node_cnos,nmm_pop,i)
-    # 计算该种群的适应度函数值    
-    nmm_fit = fit_Qs(nmm_pop,adj,n,c,NP,Q_flag)   #适应度函数值计算 
-    return (nmm_pop, nmm_fit)
-"""
 
 
 
