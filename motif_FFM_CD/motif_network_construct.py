@@ -28,10 +28,10 @@ def construct_weighted_network(Gi,n,M):
     # 初始化网络
     G=nx.Graph()
     # 初始化函数列表
-    func_list = {1:three_one_morphology, 2:three_two_morphology, 
-                 3:four_one_morphology, 4:four_two_morphology, 
-                 5:four_three_morphology, 6:four_four_morphology, 
-                 7:four_five_morphology, 8:four_six_morphology
+    func_list = {"M1":three_one_morphology, "M2":three_two_morphology, 
+                 "M3":four_one_morphology, "M4":four_two_morphology, 
+                 "M5":four_three_morphology, "M6":four_four_morphology, 
+                 "M7":four_five_morphology, "M8":four_six_morphology
                  }
     # 不考虑模体邻居节点
     ij_participate_motif_number_list = func_list[M](Gi, edge_all) # 基于M1模体计算边对应的权重
@@ -53,10 +53,10 @@ def construct_weighted_network(Gi,n,M):
 # =============================================================================
 def get_motifadd_adj(G, edge_all, M):
     # 初始化函数列表
-    motifadd_func_list = {1:three_one_morphology_motifadd, 2:three_two_morphology_motifadd, 
-                          3:four_one_morphology_motifadd, 4:four_two_morphology_motifadd, 
-                          5:four_three_morphology_motifadd, 6:four_four_morphology_motifadd, 
-                          7:four_five_morphology_motifadd, 8:four_six_morphology_motifadd
+    motifadd_func_list = {"M1":three_one_morphology_motifadd, "M2":three_two_morphology_motifadd, 
+                          "M3":four_one_morphology_motifadd, "M4":four_two_morphology_motifadd, 
+                          "M5":four_three_morphology_motifadd, "M6":four_four_morphology_motifadd, 
+                          "M7":four_five_morphology_motifadd, "M8":four_six_morphology_motifadd
                           }
     # 考虑了模体邻居节点
     motif_matrix = motifadd_func_list[M](G, edge_all)
@@ -580,7 +580,7 @@ def four_four_morphology_motifadd(G,edge_all):
                 
                 for i in set_node_list:
                     node_number_list.append([i,node_list.count(i)])
-                print(node_number_list)
+#                print(node_number_list)
                 #判断每个节点与u、v哪个节点相连接，并更新ij_participate_motif_number_list(连边参与模体构造数量列表），在连边所在位置更新数值
                 for i in range(len(node_number_list)):
                     node_i=node_number_list[i][0]

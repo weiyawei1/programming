@@ -20,20 +20,21 @@ import cython_function as cfunc
 # =============================================================================
 #     fit_Qs: 计算种群中每个个体的模糊重叠社区划分的模块度函数Q值
 #     pop: 种群
+#     Qs: 根据pop计算的模块度值
 #     adj: 网络邻接矩阵
 #     c: 社区划分的数目
 #     n: 网络节点数目
 #     NP： 种群个体数目
+#    flag: 0:Q 1:Qg 2:Qc_FCD 3:Qc_OCD 4:Qov
 # =============================================================================
-def fit_Qs(pop,adj,n,c,NP):
-    Qs = []
+def fit_Qs(Qs,pop,adj,n,c,NP,flag):
     W = np.sum(adj) # 权值之和
     m = np.sum(adj, axis=0) # adj 各列之和
     for N in range(NP):
         #计算每个个体的适应度函数值Q
         U = pop[:,:,N]
         # print(U)
-        Q = fit_Q(U,adj,n,c,W,m)
+        Q = fit_Q(U,adj,n,c,W,m,flag)
         Qs.append(Q)
     return Qs
 
@@ -45,38 +46,40 @@ def fit_Qs(pop,adj,n,c,NP):
 #     c: 社区划分的数目
 #     W: 加权网络邻接矩阵的总权值之和
 #     m: 邻接矩阵各行的权值之和
+#     flag: 0:Q 1:Qg 2:Qc_FCD 3:Qc_OCD 4:Qov
 # =============================================================================
-def fit_Q(X,adj,n,c,W,m):
-    Q = cfunc.fit_Qg(X,adj,n,c,W,m)
-    ###Q###
-    # mod = np.argmax(X, axis=0).astype('int32')
-    # Q = cfunc.fit_Q(X,adj,n,c,W,m,mod)
-    ###Qc###
-#    X_V1 = np.empty((c,n), dtype = float)
-#     # 离散化
-#    for k in range(c):
-#        for i in range(n):
-#            numki = X[k,i]
-#            if numki > 0.3:
-#                X_V1[k,i] = 1
-#            else:
-#                X_V1[k,i] = 0
-#    Q = cfunc.fit_Qc(X_V1,adj,n,c,W,m)
-    # Q = cfunc.fit_Qc(X,adj,n,c,W,m)
-    ###Qov###
-    Q = cfunc.fit_Qov(X,adj,n,c,W,m)
-#    Q =  fit_Qov(X,adj,n,c,W,m)
+def fit_Q(X,adj,n,c,W,m,flag):
+    Q=0
+    if flag=="Q":
+        ###Q###
+        mod = np.argmax(X, axis=0).astype('int32')
+        Q = cfunc.fit_Q(X,adj,n,c,W,m,mod)
+    elif flag=="Qg":
+        ###Qg###
+        Q = cfunc.fit_Qg(X,adj,n,c,W,m)
+    elif flag=="Qc_FCD":
+        ###Qc_FCD###
+        Q = cfunc.fit_Qc(X,adj,n,c,W,m)
+    elif flag=="Qc_OCD":
+        ###Qc_OCD###
+        X_V1 = np.empty((c,n), dtype = float)
+         # 离散化
+        for k in range(c):
+            for i in range(n):
+                numki = X[k,i]
+                if numki > 0.3:
+                    X_V1[k,i] = 1
+                else:
+                    X_V1[k,i] = 0
+        Q = cfunc.fit_Qc(X_V1,adj,n,c,W,m)        
+    elif flag=="Qov":
+        ##Qov###
+        Q = cfunc.fit_Qov(X,adj,n,c,W,m)
+        #Q =  fit_Qov(X,adj,n,c,W,m)
+    else:
+        Q=-1
+     
     return Q
-    
-# def fit_Q(X,adj,n,c,W,m):
-#     #计算单个个体的适应度函数值Q
-#     Q = 0.0
-#     for k in range(c):
-#         for i in range(n):
-#             for j in range(n):
-#                 Q = Q + (adj[i,j] - (m[0,i]*m[0,j])/W)*X[k,i]*X[k,j]
-#     Q/=W
-#     return Q
 
 def fit_Qov(X,adj,n,c,W,m):
     Qov = 0.0
@@ -159,6 +162,35 @@ def bound_check_revise(X,n,c):
 
 
 # =============================================================================
+#     NMM_func: 基于邻域社区的节点社区修正操作函数【1:"NOMM",2:"NMM",3:"MNMM",4:"NWMM"】
+#     pop: 种群
+#     c: 社区划分的数目
+#     n: 网络节点数目
+#     NP： 种群中的个体数
+#     adj: 无权网络的邻接矩阵
+#     motif_adj: 权重矩阵
+#     threshold_value: 阈值
+#     return: nmm_pop, nmm_fit nmm 种群, 适应度值
+# =============================================================================
+def NMM_func(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_flag):
+    nmm_pop = copy.deepcopy(pop)
+    nmm_fit = []
+    if nmm_flag=="NOMM":
+        ###NOMM###
+        fit_Qs(nmm_fit,nmm_pop,adj,n,c,NP,Q_flag)   #适应度函数值计算 
+    elif nmm_flag=="NMM":
+        ###NMM###
+        NMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fit)
+    elif nmm_flag=="MNMM":
+        ###MNMM###
+        MNMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fit)
+    elif nmm_flag=="NWMM":   
+        ###NWMM###
+        NWMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fit)
+    # 返回种群和对应的模块度值
+    return (nmm_pop, nmm_fit)
+
+# =============================================================================
 #     NMM: 基于邻居节点的社区修正（仅基于边邻居节点）
 #     nmm_pop: 种群
 #     c: 社区划分的数目
@@ -168,13 +200,12 @@ def bound_check_revise(X,n,c):
 #     threshold_value: 阈值
 #     return: nmm_pop, nmm_fit nmm种群, 适应度值
 # =============================================================================
-def NMM(pop, n, c, NP, adj, motif_adj, threshold_value):
-    nmm_pop = copy.deepcopy(pop)
+def NMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fit):
     for i in range(NP):
         seeds = [i for i in range(n)]
-        rd.shuffle(seeds)
-        # pick = seeds[:rd.randint(1, n)] # 随机选择一定数量的节点
-        pick = seeds # 选择全部数量的节点
+#        rd.shuffle(seeds)
+#        pick = seeds[:rd.randint(1, n)] # 随机选择一定数量的节点
+        pick = seeds
         # 寻找不合理划分的节点和其对应的邻居节点
         unreasonableNodes = []
         find_unreasonableNodes(unreasonableNodes, pick,nmm_pop[:,:,i],adj,c,n,threshold_value)
@@ -185,10 +216,65 @@ def NMM(pop, n, c, NP, adj, motif_adj, threshold_value):
         unreasonableNodes_revise(node_cno_list,nmm_pop,i)
     
     # 计算该种群的适应度函数值
-   
-    nmm_fit = fit_Qs(nmm_pop,adj,n,c,NP)   #适应度函数值计算 
-    
-    return (nmm_pop, nmm_fit)
+    fit_Qs(nmm_fit,nmm_pop,adj,n,c,NP,Q_flag)   #适应度函数值计算           
+
+# =============================================================================
+#     MNMM: 基于邻居节点的社区修正（基于边邻居节点和模体邻居节点,使用了模体权重信息）
+#     nmm_pop: 种群
+#     nmm_fit: 当前种群中个体的模块度值
+#     c: 社区划分的数目
+#     n: 网络节点数目
+#     NP： 种群中的个体数
+#     adj: 无权网络的邻接矩阵
+#     motif_adj: 模体加权网络的邻接矩阵
+#     threshold_value: 阈值
+# =============================================================================
+def MNMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fit):
+    for i in range(NP):
+        seeds = [i for i in range(n)]
+#        rd.shuffle(seeds)
+#        pick = seeds[:rd.randint(1, n)] # 随机选择一定数量的节点
+        pick = seeds
+        # 寻找不合理划分的节点和其对应的邻居节点
+        unreasonableNodes = []
+        find_unreasonableNodes_motifadd_V2(unreasonableNodes,pick,nmm_pop[:,:,i],adj,motif_adj,c,n,threshold_value)
+        # 获得该节点应划分的社区号
+        node_cnos = []
+        find_node_cno_motifadd(node_cnos,unreasonableNodes,nmm_pop[:,:,i],adj,motif_adj)
+#        print("len=",len(node_cnos))
+        # 修改该节点的隶属度值，对该节点重新划分社区
+        unreasonableNodes_revise(node_cnos,nmm_pop,i)
+    # 计算该种群的适应度函数值    
+    fit_Qs(nmm_fit,nmm_pop,adj,n,c,NP,Q_flag)   #适应度函数值计算 
+
+# =============================================================================
+#     NWMM: 基于邻居节点的社区修正（基于边邻居节点和模体邻居节点,使用了模体权重信息）
+#     nmm_pop: 种群
+#     c: 社区划分的数目
+#     n: 网络节点数目
+#     NP： 种群中的个体数
+#     adj: 无权网络的邻接矩阵
+#     motif_adj: 模体加权网络的邻接矩阵
+#     threshold_value: 阈值
+#     return: nmm_pop, nmm_fit nmm种群, 适应度值
+# =============================================================================
+def NWMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fit):
+    for i in range(NP):
+        seeds = [i for i in range(n)]
+#        rd.shuffle(seeds)
+#        pick = seeds[:rd.randint(1, n)] # 随机选择一定数量的节点
+        pick = seeds
+        # 寻找不合理划分的节点和其对应的邻居节点
+        unreasonableNodes = []
+        find_unreasonableNodes_motifadd_V2(unreasonableNodes,pick,nmm_pop[:,:,i],adj,motif_adj,c,n,threshold_value)
+        # 获得该节点应划分的社区号
+        node_cnos = []
+        find_node_cno_motifadd(node_cnos,unreasonableNodes,nmm_pop[:,:,i],adj,motif_adj)
+#        print("len=",len(node_cnos))
+        # 修改该节点的隶属度值，对该节点重新划分社区
+        unreasonableNodes_revise(node_cnos,nmm_pop,i)
+    # 计算该种群的适应度函数值    
+    fit_Qs(nmm_fit,nmm_pop,adj,n,c,NP,Q_flag)   #适应度函数值计算 
 
 # =============================================================================
 #     find_unreasonableNodes: 寻找基于边的不合理划分的节点
@@ -234,66 +320,6 @@ def find_node_cno(node_cno_list,nodes,Xi,adj):
         j_nodes_c = np.argmax(Xi[:,j_nodes], axis=0)
         # print("j_nodes_c=",j_nodes_c)
         node_cno_list.append((i,rd.choice(j_nodes_c)))  # choice() 依概率选择
-            
-        
-# =============================================================================
-#     MNMM_V1: 基于邻居节点的社区修正（基于边邻居节点和模体邻居节点）
-#     nmm_pop: 种群
-#     c: 社区划分的数目
-#     n: 网络节点数目
-#     NP： 种群中的个体数
-#     adj: 无权网络的邻接矩阵
-#     motif_adj: 模体加权网络的邻接矩阵
-#     threshold_value: 阈值
-#     return: nmm_pop, nmm_fit nmm种群, 适应度值
-# =============================================================================
-def MNMM_V1(pop, n, c, NP, adj, motif_adj, threshold_value):
-    nmm_pop = copy.deepcopy(pop)
-    for i in range(NP):
-        seeds = [i for i in range(n)]
-        rd.shuffle(seeds)
-        pick = seeds[:rd.randint(1, n)] # 随机选择一定数量的节点
-        # 寻找不合理划分的节点和其对应的邻居节点
-        unreasonableNodes = []
-        find_unreasonableNodes_motifadd_V1(unreasonableNodes,pick,nmm_pop[:,:,i],adj,motif_adj,c,n,threshold_value)
-        # 获得该节点应划分的社区号
-        node_cnos = []
-        find_node_cno_motifadd(node_cnos,unreasonableNodes,nmm_pop[:,:,i],adj,motif_adj)
-        # 修改该节点的隶属度值，对该节点重新划分社区
-        unreasonableNodes_revise(node_cnos,nmm_pop,i)
-    # 计算该种群的适应度函数值    
-    nmm_fit = fit_Qs(nmm_pop,adj,n,c,NP)   #适应度函数值计算 
-    return (nmm_pop, nmm_fit)
-
-# =============================================================================
-#     MNMM_V2: 基于邻居节点的社区修正（基于边邻居节点和模体邻居节点,使用了模体权重信息）
-#     nmm_pop: 种群
-#     c: 社区划分的数目
-#     n: 网络节点数目
-#     NP： 种群中的个体数
-#     adj: 无权网络的邻接矩阵
-#     motif_adj: 模体加权网络的邻接矩阵
-#     threshold_value: 阈值
-#     return: nmm_pop, nmm_fit nmm种群, 适应度值
-# =============================================================================
-def MNMM_V2(pop, n, c, NP, adj, motif_adj, threshold_value):
-    nmm_pop = copy.deepcopy(pop)
-    for i in range(NP):
-        seeds = [i for i in range(n)]
-        rd.shuffle(seeds)
-        # pick = seeds[:rd.randint(1, n)] # 随机选择一定数量的节点
-        pick = seeds # 选择全部节点
-        # 寻找不合理划分的节点和其对应的邻居节点
-        unreasonableNodes = []
-        find_unreasonableNodes_motifadd_V2(unreasonableNodes,pick,nmm_pop[:,:,i],adj,motif_adj,c,n,threshold_value)
-        # 获得该节点应划分的社区号
-        node_cnos = []
-        find_node_cno_motifadd(node_cnos,unreasonableNodes,nmm_pop[:,:,i],adj,motif_adj)
-        # 修改该节点的隶属度值，对该节点重新划分社区
-        unreasonableNodes_revise(node_cnos,nmm_pop,i)
-    # 计算该种群的适应度函数值    
-    nmm_fit = fit_Qs(nmm_pop,adj,n,c,NP)   #适应度函数值计算 
-    return (nmm_pop, nmm_fit)
 
 # =============================================================================
 #     find_unreasonableNodes_motifadd_V1: 寻找基于边的不合理划分的节点
@@ -346,22 +372,24 @@ def find_unreasonableNodes_motifadd_V2(unreasonableNodes,pick,Xi,adj,motif_adj,c
         j_m_nodes = np.nonzero(motif_adj[i,:])[1]
         # 获得节点 i 的所有邻居节点 j_nodes
         j_nodes = list(set(j_e_nodes) | set(j_m_nodes))
-        # 如果 i 节点无邻居节点，则跳过该节点
-        if len(j_nodes) == 0:
+        # 获得邻居节点 j 所在的社区       
+        j_nodes_c = np.argmax(Xi[:,j_nodes], axis=0)
+        # 如果 i 节点无邻居节点，且该节点无邻居社区，则跳过该节点
+        Ck = len(set(j_nodes_c) | set([i_node_c]))
+        if len(j_nodes) == 0 or Ck == 1:
             continue
         # 计算i与邻居节点的权值总和
         wij_sum = 0
         for j in j_nodes:
             wij_sum += motif_adj[i,j]
-        # 获得邻居节点 j 所在的社区       
-        j_nodes_c = np.argmax(Xi[:,j_nodes], axis=0)
+
         # i_c == j_c ,获取与i节点同一社区的邻居节点集,并求与i节点同一社区的邻居节点的权重总和
         wij = 0
         ij_nodes_c = np.where(j_nodes_c == i_node_c)[0]
         for j_c in ij_nodes_c:
             wij += motif_adj[i,j_nodes[j_c]]
         # 如果节点 i 与同一社区的邻居节点之间的权重总和 <= 其与所有邻居节点权重总和的平均值，则返回 i
-        Ck = len(set(j_nodes_c) | set([i_node_c]))
+        
         if wij <= wij_sum/Ck:
             unreasonableNodes.append(i)
 
@@ -380,7 +408,7 @@ def find_node_cno_motifadd(node_cnos,nodes,Xi,adj,motif_adj):
         # 初始化 i 节点对社区 c 的概率
         c_ps = []
         # 获得节点 i 所在的社区
-        i_node_c = np.argmax(Xi[:,i])
+#        i_node_c = np.argmax(Xi[:,i])
         # 寻找节点 i 基于边的邻居节点 j_e_nodes
         j_e_nodes = np.nonzero(adj[i,:])[1]
         # 寻找节点 i 基于模体的邻居节点 j_m_nodes
@@ -405,6 +433,10 @@ def find_node_cno_motifadd(node_cnos,nodes,Xi,adj,motif_adj):
         for c in clist:
             # 计算节点 i 对社区 c 的归属度
             Si = np.sum(motif_adj[i,:])
+            if Si == 0:
+                c_ps.append((c, 1))
+                break
+                
             c_j_nodes = c_jnodes[c]
             W = 0
             for j in c_j_nodes:
@@ -412,7 +444,7 @@ def find_node_cno_motifadd(node_cnos,nodes,Xi,adj,motif_adj):
             # 计算归属度
             attr = W / Si
             attr_sum += attr
-            p = 0.0001
+            p = 0.0000
             if attr_sum > 0.0001:
                 p += attr/attr_sum
                 
@@ -454,26 +486,60 @@ def choice_by_probability(c_p_list):
     ic = rd.choice(choice_list) # choice() 依概率选择
     return ic
         
-# # =============================================================================
-# #     unreasonableNodes_revise_motifadd: 修正节点社区编号
-# #     node_cnos_attrs: 节点_社区编号_归属程度
-# #     nmm_pop: 种群隶属度矩阵
-# #     c:  社区数
-# #     N:  种群中的第 N 个个体
-# #     adj: 加权网络的临界矩阵
-# # =============================================================================
-# def unreasonableNodes_revise_motifadd(node_cnos_attrs,nmm_pop,c,N,adj):
-#     for i in node_cnos_attrs.keys():        
-#         c_attrs = node_cnos_attrs[i]
-#         memberships = np.array([0.0]*c)
-#         for c_attr in c_attrs:
-#             memberships[c_attr[0]] = c_attr[1]
-#          memberships = memberships / sum(memberships)  # 归一化
-#         nmm_pop[:,i,N] = memberships
+ # =============================================================================
+ #     pop_inherit: 继承以前的种群
+ #     node_cnos_attrs: 节点_社区编号_归属程度
+ #     nmm_pop: 种群隶属度矩阵
+ #     c:  社区数
+ #     N:  种群中的第 N 个个体
+ #     adj: 加权网络的临界矩阵
+ # =============================================================================
+def pop_inherit(n, c, NP, Path):
+    pop = np.empty((c,n,NP), dtype = float) 
+    X = np.empty((c,n), dtype = float) 
+    cs_nodes_num = []
+    with open(Path, mode='r',encoding='UTF-8') as f:
+        cs_nodes_num = f.readlines()
+        for index,nodes_num in enumerate(cs_nodes_num):
+            nums = nodes_num[1:-2].split(', ')
+            nums = list(map(eval,nums))
+#            nums = list(map(round,nums,[4 for i in range(len(nums))]))
+            X[index,:] = np.asarray(nums)
+    for i in range(NP):
+        pop[:,:,i] = X
+    return pop
 
 
-
-
+"""
+# =============================================================================
+#     MNMM_V1: 基于邻居节点的社区修正（基于边邻居节点和模体邻居节点）
+#     nmm_pop: 种群
+#     c: 社区划分的数目
+#     n: 网络节点数目
+#     NP： 种群中的个体数
+#     adj: 无权网络的邻接矩阵
+#     motif_adj: 模体加权网络的邻接矩阵
+#     threshold_value: 阈值
+#     return: nmm_pop, nmm_fit nmm种群, 适应度值
+# =============================================================================
+def MNMM_V1(pop, n, c, NP, adj, motif_adj, threshold_value,Q_flag):
+    nmm_pop = copy.deepcopy(pop)
+    for i in range(NP):
+        seeds = [i for i in range(n)]
+        rd.shuffle(seeds)
+        pick = seeds[:rd.randint(1, n)] # 随机选择一定数量的节点
+        # 寻找不合理划分的节点和其对应的邻居节点
+        unreasonableNodes = []
+        find_unreasonableNodes_motifadd_V1(unreasonableNodes,pick,nmm_pop[:,:,i],adj,motif_adj,c,n,threshold_value)
+        # 获得该节点应划分的社区号
+        node_cnos = []
+        find_node_cno_motifadd(node_cnos,unreasonableNodes,nmm_pop[:,:,i],adj,motif_adj)
+        # 修改该节点的隶属度值，对该节点重新划分社区
+        unreasonableNodes_revise(node_cnos,nmm_pop,i)
+    # 计算该种群的适应度函数值    
+    nmm_fit = fit_Qs(nmm_pop,adj,n,c,NP,Q_flag)   #适应度函数值计算 
+    return (nmm_pop, nmm_fit)
+"""
 
 
 
