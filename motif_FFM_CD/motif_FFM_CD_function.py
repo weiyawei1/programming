@@ -208,10 +208,10 @@ def NMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fit
         pick = seeds
         # 寻找不合理划分的节点和其对应的邻居节点
         unreasonableNodes = []
-        find_unreasonableNodes(unreasonableNodes, pick,nmm_pop[:,:,i],adj,c,n,threshold_value)
+        NMM_CD_func(unreasonableNodes, pick,nmm_pop[:,:,i],adj,c,n,threshold_value)
         # 获得该节点应划分的社区号
         node_cno_list=[]
-        find_node_cno(node_cno_list,unreasonableNodes,nmm_pop[:,:,i],adj)
+        NMM_P_func(node_cno_list,unreasonableNodes,nmm_pop[:,:,i],adj)
         # 修改该节点的隶属度值，对该节点重新划分社区
         unreasonableNodes_revise(node_cno_list,nmm_pop,i)
     
@@ -286,7 +286,7 @@ def NWMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fi
 #     n: 网络节点数目
 #     threshold_value: 阈值
 # =============================================================================
-def find_unreasonableNodes(unreasonableNodes,pick,Xi,adj,c,n,threshold_value):
+def NMM_CD_func(unreasonableNodes,pick,Xi,adj,c,n,threshold_value):
     for i in pick:
         # 获得节点 i 所在的社区
         i_node_c = np.argmax(Xi[:,i])
@@ -312,14 +312,26 @@ def find_unreasonableNodes(unreasonableNodes,pick,Xi,adj,c,n,threshold_value):
 #     c: 社区划分的数目
 #     n: 网络节点数目
 # =============================================================================
-def find_node_cno(node_cno_list,nodes,Xi,adj):
+def NMM_P_func(node_cno_list,nodes,Xi,adj):
     for i in nodes:
         # 获得 i 基于边的邻接节点
         j_nodes = np.nonzero(adj[i,:])[1]
         # 获得邻居节点 j 所在的社区       
         j_nodes_c = np.argmax(Xi[:,j_nodes], axis=0)
         # print("j_nodes_c=",j_nodes_c)
-        node_cno_list.append((i,rd.choice(j_nodes_c)))  # choice() 依概率选择
+#        node_cno_list.append((i,rd.choice(j_nodes_c)))  # choice() 依概率选择
+        i_c = np.argmax(np.bincount(j_nodes_c)) # 直接选择概率最大的社区作为i节点划分的社区
+        node_cno_list.append((i,i_c))
+        
+#def NMM_P_func(node_cno_list,nodes,Xi,adj):
+#    for i in nodes:
+#        # 获得 i 基于边的邻接节点
+#        j_nodes = np.nonzero(adj[i,:])[1]
+#        # 获得邻居节点 j 所在的社区       
+#        j_nodes_c = np.argmax(Xi[:,j_nodes], axis=0)
+#        # print("j_nodes_c=",j_nodes_c)
+#        node_cno_list.append((i,rd.choice(j_nodes_c)))  # choice() 依概率选择
+
 
 # =============================================================================
 #     find_unreasonableNodes_motifadd_V1: 寻找基于边的不合理划分的节点
