@@ -54,7 +54,7 @@ edge_all = Gi.get_edgelist()
 n=G1.number_of_nodes()
 NP = 100
 c = 2  #社区的真实划分数
-Gen = 200  #进化代数
+Gen = 10  #进化代数
 threshold_value = 0.25  #阈值
 # 各标记列表
 Mlist = {1:"M1",2:"M2",3:"M3",4:"M4",5:"M5",6:"M6",7:"M7",8:"M8"} #模体选择列表
@@ -116,14 +116,14 @@ for index in range(NP):
 # 全局变量设置
 pop_best_history = np.zeros((c,n,Gen)) # 用于保存历史最优的个体记录
 best_in_history_Q = [] # 用于保存历史最优Q值
-nmm_flag = nmmlist[2] # 使用NWMM
+nmm_flag = nmmlist[1] # 使用NWMM
 tmp_pop,tmp_fit =  copy.deepcopy(pop),copy.deepcopy(fit_values)
 for gen in range(Gen):
     new_pop,new_fit = tmp_pop,tmp_fit
     # SOSFCD 算法
 #        (new_pop, new_fit) = alg_func.SOSFCD(pop, fit_values, n, c, NP, adj,Q_flag)
     # NMM操作
-    (nmm_pop, nmm_fit) = func.NMM_func(new_pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_flag)
+    (nmm_pop, nmm_fit) = func.NMM_funcs(new_pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_flag)
 
     # 选择优秀个体并保留到种群
     better_number = 0
@@ -145,7 +145,7 @@ for gen in range(Gen):
     pop_best_history[:,:,gen] = bestx
     membership_c = np.argmax(bestx, axis=0)
         
-    if (gen+1) % 200 ==0:
+    if (gen+1) % 1 ==0:
         print("#####"+ M_flag +"_SOSFCD_" + Q_flag + "_" + nmm_flag + "_#####")
         print("gen=",gen+1)
         print("c_count=",len(set(membership_c)))
