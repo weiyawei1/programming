@@ -53,8 +53,8 @@ edge_all = Gi.get_edgelist()
 # =============================================================================
 n=G1.number_of_nodes()
 NP = 100
-c = 2  #社区的真实划分数
-Gen = 10  #进化代数
+c = 4  #社区的真实划分数
+Gen = 200  #进化代数
 threshold_value = 0.25  #阈值
 # 各标记列表
 Mlist = {1:"M1",2:"M2",3:"M3",4:"M4",5:"M5",6:"M6",7:"M7",8:"M8"} #模体选择列表
@@ -63,7 +63,7 @@ nmmlist = {1:"NOMM",2:"NMM",3:"MNMM",4:"NWMM"} # nmm操作列表
 # 本次算法使用的标记
 M_flag = Mlist[1]
 Q_flag = Qlist[3] # 模块度函数 Qc
-nmm_flag = nmmlist[1] # 使用NWMM
+#nmm_flag = nmmlist[1] # 使用NWMM
 # 独立运行运行次数
 Independent_Runs = 1 # 本次实验独立运行次数
  
@@ -109,51 +109,64 @@ for index in range(NP):
         pop[:,:,index] = bias_pop[:,:,index] #保存优秀个体
         fit_values[index] = bias_fit_values[index] #保存优秀个体的适应度函数值
 
+best_tmp_Q = max(fit_values)
+best_tmp_X = pop[:,:,fit_values.index(best_tmp_Q)]        
+# 输出当前社区划分情况
+membership_c = np.argmax(best_tmp_X, axis=0)
+print("c_count=",len(set(membership_c)))
+print("first_membership_c=",membership_c)
 # =============================================================================
 # Main
 #【使用优化算法进行社区检测】
 # =============================================================================
-# 全局变量设置
-pop_best_history = np.zeros((c,n,Gen)) # 用于保存历史最优的个体记录
-best_in_history_Q = [] # 用于保存历史最优Q值
-nmm_flag = nmmlist[1] # 使用NWMM
-tmp_pop,tmp_fit =  copy.deepcopy(pop),copy.deepcopy(fit_values)
-for gen in range(Gen):
-    new_pop,new_fit = tmp_pop,tmp_fit
-    # SOSFCD 算法
-#        (new_pop, new_fit) = alg_func.SOSFCD(pop, fit_values, n, c, NP, adj,Q_flag)
-    # NMM操作
-    (nmm_pop, nmm_fit) = func.NMM_funcs(new_pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_flag)
 
-    # 选择优秀个体并保留到种群
-    better_number = 0
-    for index in range(NP):
-        if nmm_fit[index] > new_fit[index]:
-            new_pop[:,:,index] = nmm_pop[:,:,index]    #保存优秀个体
-            new_fit[index] = nmm_fit[index] #保存优秀个体的适应度函数值
-            better_number+=1
+#nmm_flag = nmmlist[3] # 使用NWMM
+for key in range(1,4):
+    nmm_flag = nmmlist[key]
+    # 全局变量设置
+    pop_best_history = np.zeros((c,n,Gen)) # 用于保存历史最优的个体记录
+    best_in_history_Q = [] # 用于保存历史最优Q值
+    print("=====================================================================================")
+    tmp_pop,tmp_fit =  copy.deepcopy(pop),copy.deepcopy(fit_values)
+    for gen in range(Gen):
+#        new_pop,new_fit = tmp_pop,tmp_fit
+        # SOSFCD 算法
+#            (new_pop, new_fit) = alg_func.SOSFCD(pop, fit_values, n, c, NP, adj,Q_flag)
+        (new_pop, new_fit) = alg_func.SOSFCD(tmp_pop, tmp_fit, n, c, NP, adj,Q_flag)
 
-    # 更新pop,fit
-    tmp_pop = copy.deepcopy(new_pop)
-    tmp_fit = copy.deepcopy(new_fit)
+        # NMM操作
+        (nmm_pop, nmm_fit) = func.NMM_funcs(new_pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_flag)
     
-    # 记录当代最优个体Xbest，并记录最优个体对应的Q值及NMI
-    # print("best_Q={}".format(max(fit_values)))
-    best_Q = max(tmp_fit)
-    bestx = tmp_pop[:,:,tmp_fit.index(best_Q)]
-    best_in_history_Q.append(best_Q)
-    pop_best_history[:,:,gen] = bestx
-    membership_c = np.argmax(bestx, axis=0)
+        # 选择优秀个体并保留到种群
+        better_number = 0
+        for index in range(NP):
+            if nmm_fit[index] > new_fit[index]:
+                new_pop[:,:,index] = nmm_pop[:,:,index]    #保存优秀个体
+                new_fit[index] = nmm_fit[index] #保存优秀个体的适应度函数值
+                better_number+=1
+    
+        # 更新pop,fit
+        tmp_pop = copy.deepcopy(new_pop)
+        tmp_fit = copy.deepcopy(new_fit)
         
-    if (gen+1) % 1 ==0:
-        print("#####"+ M_flag +"_SOSFCD_" + Q_flag + "_" + nmm_flag + "_#####")
-        print("gen=",gen+1)
-        print("c_count=",len(set(membership_c)))
-        print("best_"+ Q_flag +"_"+ nmm_flag +"=",best_Q)
-        print("better_number={}".format(better_number))
-end = time.process_time()
-    
-print("spend_time=", end - start)
+        # 记录当代最优个体Xbest，并记录最优个体对应的Q值及NMI
+        # print("best_Q={}".format(max(fit_values)))
+        best_Q = max(tmp_fit)
+        bestx = tmp_pop[:,:,tmp_fit.index(best_Q)]
+        best_in_history_Q.append(best_Q)
+        pop_best_history[:,:,gen] = bestx
+        membership_c = np.argmax(bestx, axis=0)
+            
+        if (gen+1) % 200 ==0:
+            print("#####"+ M_flag +"_SOSFCD_" + Q_flag + "_" + nmm_flag + "_#####")
+            print("gen=",gen+1)
+            print("c_count=",len(set(membership_c)))
+            print("membership_c=",membership_c)
+            print("best_"+ Q_flag +"_"+ nmm_flag +"=",best_Q)
+            print("better_number={}".format(better_number))
+    end = time.process_time()
+        
+    print("spend_time=", end - start)
     
 #    run+=1
     

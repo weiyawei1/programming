@@ -36,7 +36,6 @@ def fit_Qs(Qs,pop,adj,n,c,NP,flag):
         # print(U)
         Q = fit_Q(U,adj,n,c,W,m,flag)
         Qs.append(Q)
-    return Qs
 
 # =============================================================================
 #     fit_Q: 计算单个个体的模糊重叠社区划分的模块度函数Q值
@@ -303,10 +302,10 @@ def NMM_P_func(node_cno_list,nodes,Xi,adj):
         j_nodes = np.nonzero(adj[i,:])[1]
         # 获得邻居节点 j 所在的社区       
         j_nodes_c = np.argmax(Xi[:,j_nodes], axis=0)
-        # print("j_nodes_c=",j_nodes_c)
-#        node_cno_list.append((i,rd.choice(j_nodes_c)))  # choice() 依概率选择
-        i_c = np.argmax(np.bincount(j_nodes_c)) # 直接选择概率最大的社区作为i节点划分的社区
-        node_cno_list.append((i,i_c))
+#         print("j_nodes_c=",j_nodes_c)
+        node_cno_list.append((i,rd.choice(j_nodes_c)))  # choice() 依概率选择
+#        i_c = np.argmax(np.bincount(j_nodes_c)) # 直接选择概率最大的社区作为i节点划分的社区
+#        node_cno_list.append((i,i_c))
             
 # =============================================================================
 #     MNMM_CD_func: 寻找基于模体权重的不合理划分的节点
@@ -323,30 +322,32 @@ def MNMM_CD_func(unreasonableNodes,pick,Xi,adj,motif_adj,c,n,threshold_value):
         # 获得节点 i 所在的社区
         i_node_c = np.argmax(Xi[:,i])
         # 寻找节点 i 基于边的邻居节点 j_e_nodes
-        j_e_nodes = np.nonzero(adj[i,:])[1]
+        j_e_nodes = np.nonzero(np.ravel(adj[i,:]))
         # 寻找节点 i 基于模体的邻居节点 j_m_nodes
-        j_m_nodes = np.nonzero(motif_adj[i,:])[1]
-        # 获得节点 i 的所有邻居节点 j_nodes
-        j_nodes = list(set(j_e_nodes) | set(j_m_nodes))
+        j_m_nodes = np.nonzero(np.ravel(motif_adj[i,:]))
+        # 获得节点 i 的所有邻居节点(边邻居节点+模体邻居节点) j_nodes
+        j_nodes = np.unique(np.ravel(np.concatenate((j_e_nodes,j_m_nodes),axis=1)))
         # 获得邻居节点 j 所在的社区       
         j_nodes_c = np.argmax(Xi[:,j_nodes], axis=0)
         # 如果 i 节点无邻居节点，且该节点无邻居社区，则跳过该节点
-        Ck = len(set(j_nodes_c) | set([i_node_c]))
-        if len(j_nodes) == 0 or Ck == 1:
+        Cnei = len(np.unique(np.concatenate((np.ravel(i_node_c),np.ravel(j_nodes_c)))))
+        if len(j_nodes) == 0 or Cnei == 1:
             continue
-        # 计算i与邻居节点的权值总和
+        # 计算i与其所有邻居节点的权值总和
         wij_sum = 0
         for j in j_nodes:
             wij_sum += motif_adj[i,j]
 
         # i_c == j_c ,获取与i节点同一社区的邻居节点集,并求与i节点同一社区的邻居节点的权重总和
         wij = 0
-        ij_nodes_c = np.where(j_nodes_c == i_node_c)[0]
-        for j_c in ij_nodes_c:
-            wij += motif_adj[i,j_nodes[j_c]]
+        j_node_c_dict = dict(zip(j_nodes,j_nodes_c))
+        
+        ijc_nodes = [key for key in j_node_c_dict.keys() if j_node_c_dict[key] == i_node_c]
+        for j in ijc_nodes:
+            wij += motif_adj[i,j]
         # 如果节点 i 与同一社区的邻居节点之间的权重总和 <= 其与所有邻居节点权重总和的平均值，则返回 i
         
-        if wij <= wij_sum/Ck:
+        if wij - wij_sum/Cnei <= 0:
             unreasonableNodes.append(i)
 
 # =============================================================================
@@ -366,48 +367,30 @@ def MNMM_P_func(node_cnos,nodes,Xi,adj,motif_adj):
         # 获得节点 i 所在的社区
 #        i_node_c = np.argmax(Xi[:,i])
         # 寻找节点 i 基于边的邻居节点 j_e_nodes
-        j_e_nodes = np.nonzero(adj[i,:])[1]
+        j_e_nodes = np.nonzero(np.ravel(adj[i,:]))
         # 寻找节点 i 基于模体的邻居节点 j_m_nodes
-        j_m_nodes = np.nonzero(motif_adj[i,:])[1]
-        # 获得节点 i 的所有邻居节点 j_nodes
-        j_nodes = list(set(j_e_nodes) | set(j_m_nodes))
-        
+        j_m_nodes = np.nonzero(np.ravel(motif_adj[i,:]))
+        # 获得节点 i 的所有邻居节点(边邻居节点+模体邻居节点) j_nodes
+        j_nodes = np.unique(np.ravel(np.concatenate((j_e_nodes,j_m_nodes),axis=1)))
         # 获得邻居节点 j 所在的社区       
         j_nodes_c = np.argmax(Xi[:,j_nodes], axis=0)
-        
-        clist = set(j_nodes_c)
+        j_node_c_dict = dict(zip(j_nodes,j_nodes_c))
+        # 计算吸引力(节点i划分到Ck社区的概率)
+        attr_sum = np.sum(motif_adj[i,:]) #计算节点i对所有邻居社区的归属程度总和【展示基于模体邻居节点】
+        # 如果attr_sum == 0, 依概率选择一个邻居社区作为其划分的社区
+        if attr_sum == 0:
+            node_cnos.append((i,rd.choice(j_nodes_c))) # choice 依概率选择
+            continue
+    
         # 获得社区及对应的节点
-        c_jnodes = {}
-        for c in clist:
-            nodes = []
-            for index, j_c in enumerate(j_nodes_c):
-                if j_c == c:
-                    nodes.append(j_nodes[index])
-            c_jnodes[c] = nodes         
-        # print("j_nodes_c=",j_nodes_c)
-        attr_sum = 0.0  # C个社区的归属度之和
-        for c in clist:
-            # 计算节点 i 对社区 c 的归属度
-            Si = np.sum(motif_adj[i,:])
-            if Si == 0:
-                c_ps.append((c, 1))
-                break
-                
-            c_j_nodes = c_jnodes[c]
-            W = 0
-            for j in c_j_nodes:
-                W += motif_adj[i,j]
-            # 计算归属度
-            attr = W / Si
-            attr_sum += attr
-            p = 0.0000
-            if attr_sum > 0.0001:
-                p += attr/attr_sum
-                
-            c_ps.append((c, p))
+        for ck in set(j_nodes_c):
+            ck_jnodes = [key for key in j_node_c_dict.keys() if j_node_c_dict[key] == ck] # 获得社区ck中的个节点
+            # 计算节点i对社区c的归属程度
+            attr_i_ck = sum([motif_adj[i,j] for j in ck_jnodes])
+            c_ps.append((ck,attr_i_ck / attr_sum))
 
-#        c = choice_by_probability(c_ps) #依概率选择
-        c = np.argmax(np.bincount(c_ps)) # 直接选择概率最大的社区作为i节点划分的社区
+        c = choice_by_probability(c_ps) #依概率选择
+#        c = sorted(c_ps, key=lambda x:(x[1]), reverse=True)[0][0]  # 直接选择概率最大的社区作为i节点划分的社区
         node_cnos.append((i,c))  
         
 # =============================================================================
