@@ -97,7 +97,7 @@ for edge in edge_all:
     cs = [clist[edge[0]],clist[edge[1]],0]
     # 寻找基于该边的模体的顶点
     node_ij = set(np.nonzero(adj[edge[0],:])[1]) & set(np.nonzero(adj[edge[1],:])[1])
-    w_edge = 0 # 初始化该条边的权重
+    w_edge = 0 #初始化该条边的权重
     for node in node_ij:
         # M(edge[0],dege[1],node)
         cs[2] = np.argmax(X[:,node])

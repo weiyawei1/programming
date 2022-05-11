@@ -11,8 +11,13 @@ Created on Wed Jan 17 11:55:16 2022
 import numpy as np
 import pandas as pd 
 import random  as rd
+import networkx as nx
 import copy
 import math
+import time
+
+# 引入外部函数
+import find_motifs as fm
 
 # C函数
 import cython_function as cfunc
@@ -116,7 +121,7 @@ def init_pop(n,c,NP):
         for i in range(n):
             membershipList = []
             for k in range(c):
-                # rd.seed(N+i+k)
+#                rd.seed(N+i+k)
                 membershipList.append(rd.random())
             memberships = np.asarray(membershipList)
             memberships = memberships/sum(memberships)  #归一化
@@ -129,10 +134,36 @@ def init_pop(n,c,NP):
 #     n: 网络节点数目
 #     NP： 种群个体数目
 # =============================================================================
+#def bias_init_pop(pop,n,c,NP,adj):
+#    bias_pop = copy.deepcopy(pop)
+#    for N in range(NP):
+#        # 在该个体中，随机选择c个节点,且使c个节点隶属于不同社区，并将其隶属度赋值给所有相邻节点
+#        ilist = []
+#        for c in range(c):
+#            i_rand = 0
+#            while True:
+#                i_rand = rd.randint(0, n-1)
+#                if ilist.count(i_rand) == 0:
+#                    break
+#            ilist.append(i_rand)
+#            
+#            new_m = pop[c,i_rand,N] + 0.5
+#            if new_m > 1.0:
+#                pop[c,i_rand,N] = 0.9999
+#            else:
+#                pop[c,i_rand,N] = new_m
+#            pop[:,i_rand,N] /= np.sum(pop[:,i_rand,N]) # 归一化
+#            # 找出i_rand的所有边邻居节点
+#            j_rand_nodes = np.ravel(np.nonzero(np.ravel(adj[i_rand,:])))
+#            for j in j_rand_nodes:
+#                bias_pop[:,j,N] = bias_pop[:,i_rand,N]
+#                    
+#    return bias_pop
+
 def bias_init_pop(pop,n,c,NP,adj):
     bias_pop = copy.deepcopy(pop)
     for N in range(NP):
-        # 在该个体中，随机选择一个节点，将其隶属度赋值给所有相邻节点
+        # 在该个体中，随机选择c个节点,且C个节点隶属于不同社区，将其隶属度赋值给所有相邻节点
         i_rand = rd.randint(0, n-1)  
         for i in range(n):
            if i != i_rand and adj[i_rand,i]>0:
@@ -171,7 +202,7 @@ def bound_check_revise(X,n,c):
 #     threshold_value: 阈值
 #     return: nmm_pop, nmm_fit nmm 种群, 适应度值
 # =============================================================================
-def NMM_funcs(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_flag):
+def NMM_funcs(G, pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_flag):
     nmm_pop = copy.deepcopy(pop)
     nmm_fit = []
     if nmm_flag=="NOMM":
@@ -185,7 +216,7 @@ def NMM_funcs(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_flag):
         MNMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fit)
     elif nmm_flag=="NWMM":   
         ###NWMM###
-        NWMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fit)
+        NWMM(G, pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fit)
     # 返回种群和对应的模块度值
     return (nmm_pop, nmm_fit)
 
@@ -237,6 +268,7 @@ def MNMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fi
         # 寻找不合理划分的节点和其对应的邻居节点
         unreasonableNodes = []
         MNMM_CD_func(unreasonableNodes,pick,nmm_pop[:,:,i],adj,motif_adj,c,n,threshold_value)
+
         # 获得该节点应划分的社区号
         node_cnos = []
         MNMM_P_func(node_cnos,unreasonableNodes,nmm_pop[:,:,i],adj,motif_adj)
@@ -247,7 +279,7 @@ def MNMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fi
     fit_Qs(nmm_fit,nmm_pop,adj,n,c,NP,Q_flag)   #适应度函数值计算 
 
 # =============================================================================
-#     NWMM: 基于邻居节点的社区修正（基于边邻居节点和模体邻居节点,使用了模体权重信息）
+#     NWMM: 融合邻域及权重信息的节点的社区修正（权重：融合了模体权重和隶属度信息）
 #     nmm_pop: 种群
 #     c: 社区划分的数目
 #     n: 网络节点数目
@@ -257,8 +289,24 @@ def MNMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fi
 #     threshold_value: 阈值
 #     return: nmm_pop, nmm_fit nmm种群, 适应度值
 # =============================================================================
-def NWMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fit):
-    pass
+def NWMM(G, pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fit):
+    for i in range(NP):
+        seeds = [i for i in range(n)]
+#        rd.shuffle(seeds)
+#        pick = seeds[:rd.randint(1, n)] # 随机选择一定数量的节点
+        pick = seeds
+        # 寻找不合理划分的节点和其对应的邻居节点
+        unreasonableNodes = []
+        NWMM_CD_func(G, unreasonableNodes,pick,nmm_pop[:,:,i],adj,motif_adj,c,n,threshold_value)
+        # 获得该节点应划分的社区号
+        node_cnos = []
+        NWMM_P_func(G, node_cnos,unreasonableNodes,nmm_pop[:,:,i],adj,motif_adj)
+        NWMM_CD_func(G, unreasonableNodes,pick,nmm_pop[:,:,i],adj,motif_adj,c,n,threshold_value)
+#        print("len=",len(node_cnos))
+        # 修改该节点的隶属度值，对该节点重新划分社区
+        unreasonableNodes_revise(node_cnos,nmm_pop,i)
+    # 计算该种群的适应度函数值    
+    fit_Qs(nmm_fit,nmm_pop,adj,n,c,NP,Q_flag)   #适应度函数值计算 
 
 # =============================================================================
 #     find_unreasonableNodes: 寻找基于边的不合理划分的节点
@@ -303,9 +351,9 @@ def NMM_P_func(node_cno_list,nodes,Xi,adj):
         # 获得邻居节点 j 所在的社区       
         j_nodes_c = np.argmax(Xi[:,j_nodes], axis=0)
 #         print("j_nodes_c=",j_nodes_c)
-        node_cno_list.append((i,rd.choice(j_nodes_c)))  # choice() 依概率选择
-#        i_c = np.argmax(np.bincount(j_nodes_c)) # 直接选择概率最大的社区作为i节点划分的社区
-#        node_cno_list.append((i,i_c))
+#        node_cno_list.append((i,rd.choice(j_nodes_c)))  # choice() 依概率选择
+        i_c = np.argmax(np.bincount(j_nodes_c)) # 直接选择概率最大的社区作为i节点划分的社区
+        node_cno_list.append((i,i_c))
             
 # =============================================================================
 #     MNMM_CD_func: 寻找基于模体权重的不合理划分的节点
@@ -346,7 +394,6 @@ def MNMM_CD_func(unreasonableNodes,pick,Xi,adj,motif_adj,c,n,threshold_value):
         for j in ijc_nodes:
             wij += motif_adj[i,j]
         # 如果节点 i 与同一社区的邻居节点之间的权重总和 <= 其与所有邻居节点权重总和的平均值，则返回 i
-        
         if wij - wij_sum/Cnei <= 0:
             unreasonableNodes.append(i)
 
@@ -374,6 +421,8 @@ def MNMM_P_func(node_cnos,nodes,Xi,adj,motif_adj):
         j_nodes = np.unique(np.ravel(np.concatenate((j_e_nodes,j_m_nodes),axis=1)))
         # 获得邻居节点 j 所在的社区       
         j_nodes_c = np.argmax(Xi[:,j_nodes], axis=0)
+        if i == 5:
+            print("j_nodes_c=",j_nodes_c)
         j_node_c_dict = dict(zip(j_nodes,j_nodes_c))
         # 计算吸引力(节点i划分到Ck社区的概率)
         attr_sum = np.sum(motif_adj[i,:]) #计算节点i对所有邻居社区的归属程度总和【展示基于模体邻居节点】
@@ -389,10 +438,101 @@ def MNMM_P_func(node_cnos,nodes,Xi,adj,motif_adj):
             attr_i_ck = sum([motif_adj[i,j] for j in ck_jnodes])
             c_ps.append((ck,attr_i_ck / attr_sum))
 
-        c = choice_by_probability(c_ps) #依概率选择
-#        c = sorted(c_ps, key=lambda x:(x[1]), reverse=True)[0][0]  # 直接选择概率最大的社区作为i节点划分的社区
+#        c = choice_by_probability(c_ps) #依概率选择
+        c = sorted(c_ps, key=lambda x:(x[1]), reverse=True)[0][0]  # 直接选择概率最大的社区作为i节点划分的社区
+        if i == 5:
+            print('www=',i,c_ps,c,j_nodes,j_nodes_c)
         node_cnos.append((i,c))  
+
+# =============================================================================
+#     MNMM_CD_func: 基于融合模体权重及隶属度信息的权重信息，寻找不合理划分的节点
+#     pick: 一定数量的随机节点
+#     Xi: 第i个个体的隶属度矩阵
+#     adj: 加权网络的临界矩阵
+#     c: 社区划分的数目
+#     n: 网络节点数目
+#     threshold_value: 阈值
+#     reutrn: unreasonableNodes 划分不合理的节点集合
+# =============================================================================
+def NWMM_CD_func(G, unreasonableNodes,pick,Xi,adj,motif_adj,c,n,threshold_value):
+    for i in pick:
+        # 获得节点 i 所在的社区
+        i_node_c = np.argmax(Xi[:,i])
+        # 寻找节点 i 基于边的邻居节点 j_e_nodes
+        j_e_nodes = np.nonzero(np.ravel(adj[i,:]))
+        # 寻找节点 i 基于模体的邻居节点 j_m_nodes
+        j_m_nodes = np.nonzero(np.ravel(motif_adj[i,:]))
+        # 获得节点 i 的所有邻居节点(边邻居节点+模体邻居节点) j_nodes
+        j_nodes = np.unique(np.ravel(np.concatenate((j_e_nodes,j_m_nodes),axis=1)))
+        # 获得邻居节点 j 所在的社区       
+        j_nodes_c = np.argmax(Xi[:,j_nodes], axis=0)
+        # 如果 i 节点无邻居节点，且该节点无邻居社区，则跳过该节点
+        Cnei = len(np.unique(np.concatenate((np.ravel(i_node_c),np.ravel(j_nodes_c)))))
+        if len(j_nodes) == 0 or Cnei == 1:
+            continue
+        # 计算i与其所有邻居节点的权值总和
+        wij_sum = 0
+        for j in j_nodes:
+            wij_sum = wij_sum + MMW_func(G, (i,j), Xi, motif_adj)
+
+        # i_c == j_c ,获取与i节点同一社区的邻居节点集,并求与i节点同一社区的邻居节点的权重总和
+        wij = 0
+        j_node_c_dict = dict(zip(j_nodes,j_nodes_c))
         
+        ijc_nodes = [key for key in j_node_c_dict.keys() if j_node_c_dict[key] == i_node_c]
+        for j in ijc_nodes:
+            wij = wij + MMW_func(G, (i,j), Xi, motif_adj)
+        # 如果节点 i 与同一社区的邻居节点之间的权重总和 <= 其与所有邻居节点权重总和的平均值，则返回 i
+        if wij - wij_sum/Cnei <= 0:
+            unreasonableNodes.append(i)
+            
+# =============================================================================
+#     MNMM_P_func: 寻找节点应划分的社区号
+#     nodes: 未正确划分的节点
+#     Xi: 第i个个体的隶属度矩阵
+#     adj: 加权网络的临界矩阵
+#     c: 社区划分的数目
+#     n: 网络节点数目
+#     return: 节点社区归属度字典{i:[(ck,attrk)]}
+# =============================================================================
+def NWMM_P_func(G, node_cnos,nodes,Xi,adj,motif_adj):
+        
+    for i in nodes:
+        # 初始化 i 节点对社区 c 的概率
+        c_ps = []
+        # 获得节点 i 所在的社区
+#        i_node_c = np.argmax(Xi[:,i])
+        # 寻找节点 i 基于边的邻居节点 j_e_nodes
+        j_e_nodes = np.nonzero(np.ravel(adj[i,:]))
+        # 寻找节点 i 基于模体的邻居节点 j_m_nodes
+        j_m_nodes = np.nonzero(np.ravel(motif_adj[i,:]))
+        # 获得节点 i 的所有邻居节点(边邻居节点+模体邻居节点) j_nodes
+        j_nodes = np.unique(np.ravel(np.concatenate((j_e_nodes,j_m_nodes),axis=1)))
+        # 获得邻居节点 j 所在的社区       
+        j_nodes_c = np.argmax(Xi[:,j_nodes], axis=0)
+        j_node_c_dict = dict(zip(j_nodes,j_nodes_c))
+        # 计算吸引力(节点i划分到Ck社区的概率)
+        attr_sum = 0
+        for j in j_nodes:
+            attr_sum += MMW_func(G, (i,j), Xi, motif_adj) #计算节点i对所有邻居社区的归属程度总和【展示基于模体邻居节点】
+        # 如果attr_sum == 0, 依概率选择一个邻居社区作为其划分的社区
+        if attr_sum == 0:
+            node_cnos.append((i,rd.choice(j_nodes_c))) # choice 依概率选择
+            continue
+    
+        # 获得社区及对应的节点
+        for ck in set(j_nodes_c):
+            ck_jnodes = [key for key in j_node_c_dict.keys() if j_node_c_dict[key] == ck] # 获得社区ck中的个节点
+            # 计算节点i对社区c的归属程度
+            attr_i_ck = sum([MMW_func(G, (i,j), Xi, motif_adj) for j in ck_jnodes])
+            c_ps.append((ck,attr_i_ck / attr_sum))
+
+#        c = choice_by_probability(c_ps) #依概率选择
+        c = sorted(c_ps, key=lambda x:(x[1]), reverse=True)[0][0]  # 直接选择概率最大的社区作为i节点划分的社区
+        node_cnos.append((i,c))  
+
+
+      
 # =============================================================================
 #     unreasonableNodes_revise: 修正节点社区编号
 #     node_cno_list: 节点和社区编号
@@ -424,6 +564,70 @@ def choice_by_probability(c_p_list):
         choice_list += [c]*n
     ic = rd.choice(choice_list) # choice() 依概率选择
     return ic
+
+# =============================================================================
+# MMW_func: 融合模体及隶属度信息的权重
+# G: 网络
+# edge: 网络的一条边
+# Xi: 个体Xi
+# return: 返回该条边的融合权重值
+# =============================================================================
+def MMW_func(G,edge, Xi, motif_adj):
+    # 寻找基于该边的模体M1的顶点
+    node_ij = set(np.nonzero(motif_adj[edge[0],:])[1]) & set(np.nonzero(motif_adj[edge[1],:])[1])
+    Node_set, edge_set = [],[]
+    for i in node_ij:
+        Node_set.append((edge[0],edge[1],i))
+        edge_set.append([(edge[0],edge[1]),(edge[0],i),(edge[1],i)])
+    len_set = len(Node_set)
+    edge_W = 0 # edge的融合权重
+    for i in range(len_set):
+        # 模体 M1
+
+        nodes = Node_set[i] #获得M的点信息
+        edges = edge_set[i] #获得模体M的边信息
+        # 获得该模体M当前所在的社区
+        M_c = np.argmax(np.bincount(np.array([np.argmax(Xi[:,i]) for i in nodes])))
+        # 计算该模体的隶属度之和
+        sum_membership = sum([Xi[M_c][i] for i in nodes])
+        # 计算该模体的权重之和
+        sum_w = sum([motif_adj[edge1[0],edge1[1]] for edge1 in edges])
+        # 计算该边的融合权重
+        edge_W += ((motif_adj[edge[0],edge[1]]/sum_w)*sum_membership + motif_adj[edge[0],edge[1]])
+        
+    return edge_W 
+
+# =============================================================================
+# MMW_func: 融合模体及隶属度信息的权重
+# G: 网络
+# edge: 网络的一条边
+# Xi: 个体Xi
+# return: 返回该条边的融合权重值
+# =============================================================================
+#def MMW_func(G, edge, Xi, motif_adj):
+#    # 创建需要计算的模体 M1
+#    g = nx.Graph()
+#    g.add_nodes_from([1, 2, 3])
+#    g.add_edges_from([(1, 2), (2, 3), (3, 1)])  #连通
+#    Node_set,edge_set=fm.edge_in_motif_list(G, g, edge, directed=False, weighted=False)
+#    len_set = len(Node_set)
+#    edge_W = 0 # edge的融合权重
+#    for i in range(len_set):
+#        # 模体 M
+#        nodes = Node_set[i] #获得M的点信息
+#        edges = edge_set[i] #获得模体M的边信息
+#        # 获得该模体M当前所在的社区
+#        M_c = np.argmax(np.bincount(np.array([np.argmax(Xi[:,i]) for i in nodes])))
+#        # 计算该模体的隶属度之和
+#        sum_membership = sum([Xi[M_c][i] for i in nodes])
+#        # 计算该模体的权重之和
+#        sum_w = sum([motif_adj[edge1[0],edge1[1]] for edge1 in edges])
+#        # 计算该边的融合权重
+#        edge_W += ((motif_adj[edge[0],edge[1]]/sum_w)*sum_membership + motif_adj[edge[0],edge[1]])
+#        
+#    return edge_W 
+        
+    
         
  # =============================================================================
  #     pop_inherit: 继承以前的种群
