@@ -262,9 +262,9 @@ def NMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fit
 def MNMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fit):
     for i in range(NP):
         seeds = [i for i in range(n)]
-#        rd.shuffle(seeds)
-#        pick = seeds[:rd.randint(1, n)] # 随机选择一定数量的节点
-        pick = seeds
+        rd.shuffle(seeds)
+        pick = seeds[:rd.randint(1, n)] # 随机选择一定数量的节点
+#        pick = seeds
         # 寻找不合理划分的节点和其对应的邻居节点
         unreasonableNodes = []
         MNMM_CD_func(unreasonableNodes,pick,nmm_pop[:,:,i],adj,motif_adj,c,n,threshold_value)
@@ -292,19 +292,19 @@ def MNMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fi
 def NWMM(G, pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fit):
     for i in range(NP):
         seeds = [i for i in range(n)]
-#        rd.shuffle(seeds)
-#        pick = seeds[:rd.randint(1, n)] # 随机选择一定数量的节点
-        pick = seeds
+        rd.shuffle(seeds)
+        pick = seeds[:rd.randint(1, n)] # 随机选择一定数量的节点
+#        pick = seeds
         # 寻找不合理划分的节点和其对应的邻居节点
         unreasonableNodes = []
         NWMM_CD_func(G, unreasonableNodes,pick,nmm_pop[:,:,i],adj,motif_adj,c,n,threshold_value)
-        # 获得该节点应划分的社区号
-        node_cnos = []
-        NWMM_P_func(G, node_cnos,unreasonableNodes,nmm_pop[:,:,i],adj,motif_adj)
-        NWMM_CD_func(G, unreasonableNodes,pick,nmm_pop[:,:,i],adj,motif_adj,c,n,threshold_value)
+        # 获得当前节点对各个社区的隶属程度
+        node_cps = {}
+        NWMM_P_func(G, node_cps,unreasonableNodes,nmm_pop[:,:,i],adj,motif_adj)
 #        print("len=",len(node_cnos))
         # 修改该节点的隶属度值，对该节点重新划分社区
-        unreasonableNodes_revise(node_cnos,nmm_pop,i)
+#        print("node_cnos=",node_cnos)
+        NWMM_nc_revise(node_cps,nmm_pop,i)
     # 计算该种群的适应度函数值    
     fit_Qs(nmm_fit,nmm_pop,adj,n,c,NP,Q_flag)   #适应度函数值计算 
 
@@ -421,8 +421,6 @@ def MNMM_P_func(node_cnos,nodes,Xi,adj,motif_adj):
         j_nodes = np.unique(np.ravel(np.concatenate((j_e_nodes,j_m_nodes),axis=1)))
         # 获得邻居节点 j 所在的社区       
         j_nodes_c = np.argmax(Xi[:,j_nodes], axis=0)
-        if i == 5:
-            print("j_nodes_c=",j_nodes_c)
         j_node_c_dict = dict(zip(j_nodes,j_nodes_c))
         # 计算吸引力(节点i划分到Ck社区的概率)
         attr_sum = np.sum(motif_adj[i,:]) #计算节点i对所有邻居社区的归属程度总和【展示基于模体邻居节点】
@@ -440,8 +438,6 @@ def MNMM_P_func(node_cnos,nodes,Xi,adj,motif_adj):
 
 #        c = choice_by_probability(c_ps) #依概率选择
         c = sorted(c_ps, key=lambda x:(x[1]), reverse=True)[0][0]  # 直接选择概率最大的社区作为i节点划分的社区
-        if i == 5:
-            print('www=',i,c_ps,c,j_nodes,j_nodes_c)
         node_cnos.append((i,c))  
 
 # =============================================================================
@@ -495,7 +491,7 @@ def NWMM_CD_func(G, unreasonableNodes,pick,Xi,adj,motif_adj,c,n,threshold_value)
 #     n: 网络节点数目
 #     return: 节点社区归属度字典{i:[(ck,attrk)]}
 # =============================================================================
-def NWMM_P_func(G, node_cnos,nodes,Xi,adj,motif_adj):
+def NWMM_P_func(G, node_cps,nodes,Xi,adj,motif_adj):
         
     for i in nodes:
         # 初始化 i 节点对社区 c 的概率
@@ -517,7 +513,9 @@ def NWMM_P_func(G, node_cnos,nodes,Xi,adj,motif_adj):
             attr_sum += MMW_func(G, (i,j), Xi, motif_adj) #计算节点i对所有邻居社区的归属程度总和【展示基于模体邻居节点】
         # 如果attr_sum == 0, 依概率选择一个邻居社区作为其划分的社区
         if attr_sum == 0:
-            node_cnos.append((i,rd.choice(j_nodes_c))) # choice 依概率选择
+            for c in set(j_nodes_c):
+                c_ps.append((c,j_nodes_c.tolist().count(c)/len(j_nodes_c)))
+            node_cps[i] = c_ps
             continue
     
         # 获得社区及对应的节点
@@ -528,8 +526,8 @@ def NWMM_P_func(G, node_cnos,nodes,Xi,adj,motif_adj):
             c_ps.append((ck,attr_i_ck / attr_sum))
 
 #        c = choice_by_probability(c_ps) #依概率选择
-        c = sorted(c_ps, key=lambda x:(x[1]), reverse=True)[0][0]  # 直接选择概率最大的社区作为i节点划分的社区
-        node_cnos.append((i,c))  
+#        c = sorted(copy.deepcopy(c_ps), key=lambda x:(x[1]), reverse=True)[0][0]  # 直接选择概率最大的社区作为i节点划分的社区
+        node_cps[i] = c_ps
 
 
       
@@ -548,6 +546,18 @@ def unreasonableNodes_revise(node_cno_list,nmm_pop,N):
         else:
             nmm_pop[c,i,N] = new_num
         nmm_pop[:,i,N] /= np.sum(nmm_pop[:,i,N]) # 归一化
+        
+# =============================================================================
+#     NWMM_nc_revise: NWMM修正节点社区编号
+#     node_cno_list: 节点和社区编号
+#     Xi: 第i个个体的隶属度矩阵
+# =============================================================================
+def NWMM_nc_revise(node_cps,nmm_pop,N):
+    for i in node_cps.keys():
+        cps = node_cps[i]
+        for c_p in cps:
+            nmm_pop[c_p[0],i,N] = c_p[1]
+#        nmm_pop[:,i,N] /= np.sum(nmm_pop[:,i,N]) # 归一化
  
 # =============================================================================
 #     choice_by_probability: 依概率选择

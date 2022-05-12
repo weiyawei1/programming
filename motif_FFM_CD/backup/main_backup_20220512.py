@@ -15,8 +15,6 @@ import networkx as nx
 import os
 import time
 import copy
-from tqdm import tqdm
-
 # 各模块函数
 import motif_network_construct as net_stru_func
 import algorithm_FCD_function as alg_func
@@ -39,7 +37,7 @@ func_path = r"data/功能网络"
 brain47_network = func_path + r'/brain47.txt'
 
 # 选择网络
-network = karate_network
+network = zhang_network
 G1 = nx.read_edgelist(network,create_using=nx.Graph())
 G1 = G1.to_undirected()
 
@@ -54,9 +52,9 @@ edge_all = Gi.get_edgelist()
 # 各参数设置
 # =============================================================================
 n=G1.number_of_nodes()
-NP = 100
-c = 4  #社区的真实划分数
-Gen = 1000  #进化代数
+NP = 1
+c = 3  #社区的真实划分数
+Gen = 10  #进化代数
 threshold_value = 0.25  #阈值
 # 各标记列表
 Mlist = {1:"M1",2:"M2",3:"M3",4:"M4",5:"M5",6:"M6",7:"M7",8:"M8"} #模体选择列表
@@ -65,6 +63,7 @@ nmmlist = {1:"NOMM",2:"NMM",3:"MNMM",4:"NWMM"} # nmm操作列表
 # 本次算法使用的标记
 M_flag = Mlist[1]
 Q_flag = Qlist[3] # 模块度函数 Qc
+#nmm_flag = nmmlist[1] # 使用NWMM
 # 独立运行运行次数
 Independent_Runs = 1 # 本次实验独立运行次数
  
@@ -88,8 +87,8 @@ run = 0 # 本程序开始独立运行的次数
 #while (run < Independent_Runs):
 
 # 全局变量设置
-#pop_best_history = np.zeros((c,n,Gen)) # 用于保存历史最优的个体记录
-#best_in_history_Q = [] # 用于保存历史最优Q值
+pop_best_history = np.zeros((c,n,Gen)) # 用于保存历史最优的个体记录
+best_in_history_Q = [] # 用于保存历史最优Q值
 
 start = time.process_time()
 # =============================================================================
@@ -104,7 +103,7 @@ func.fit_Qs(fit_values,pop,adj,n,c,NP,Q_flag)   #适应度函数值计算
 nmilist = [] # 用于保存每一代的NMI值
 # 获取真实社区划分列表
 real_mem = []
-with open(path + "/real/" + 'karate_groundtruth_4.txt', mode='r',encoding='UTF-8') as f:
+with open(path + "/real/" + 'zhang_groundtruth.txt', mode='r',encoding='UTF-8') as f:
     real_mem = list(map(int,f.read().splitlines()))
 
 #有偏操作
@@ -116,30 +115,43 @@ for index in range(NP):
     if bias_fit_values[index] > fit_values[index]:
         pop[:,:,index] = bias_pop[:,:,index] #保存优秀个体
         fit_values[index] = bias_fit_values[index] #保存优秀个体的适应度函数值
+
+best_tmp_Q = max(fit_values)
+best_tmp_X = pop[:,:,fit_values.index(best_tmp_Q)]        
+# 输出当前社区划分情况
+membership_c = np.argmax(best_tmp_X, axis=0)
+print("c_count=",len(set(membership_c)))
+print("first_membership_c=",membership_c)
 # =============================================================================
 # Main
 #【使用优化算法进行社区检测】
 # =============================================================================
-for key in range(1,5):
+
+#nmm_flag = nmmlist[3] # 使用NWMM
+for key in range(4,5):
     nmm_flag = nmmlist[key]
     # 全局变量设置
     pop_best_history = np.zeros((c,n,Gen)) # 用于保存历史最优的个体记录
-    best_in_history_Q = [] # 用于保存历史最优Q值]
-    tmp_pop,tmp_fit =  copy.deepcopy(pop),copy.deepcopy(fit_values)
+    best_in_history_Q = [] # 用于保存历史最优Q值
     print("=====================================================================================")
-    for gen in tqdm(range(Gen)):
-        # SOSFCD算法
-        (new_pop, new_fit) = alg_func.SOSFCD(tmp_pop, tmp_fit, n, c, NP, adj,Q_flag)
-        # NMM操作
+    tmp_pop,tmp_fit =  copy.deepcopy(pop),copy.deepcopy(fit_values)
+    for gen in range(Gen):
+        new_pop,new_fit = tmp_pop,tmp_fit
+        # SOSFCD 算法
+#            (new_pop, new_fit) = alg_func.SOSFCD(pop, fit_values, n, c, NP, adj,Q_flag)
+#        (new_pop, new_fit) = alg_func.SOSFCD(tmp_pop, tmp_fit, n, c, NP, adj,Q_flag)
+#        if gen > 1/2*Gen:
+            # NMM操作
         (nmm_pop, nmm_fit) = func.NMM_funcs(G2, new_pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_flag)
+
         # 选择优秀个体并保留到种群
-        better_number = 0
-        for index in range(NP):
-            if nmm_fit[index] > new_fit[index]:
-                new_pop[:,:,index] = nmm_pop[:,:,index]    #保存优秀个体
-                new_fit[index] = nmm_fit[index] #保存优秀个体的适应度函数值
-                better_number+=1
-                
+#        better_number = 0
+#        for index in range(NP):
+#            if nmm_fit[index] > new_fit[index]:
+#                new_pop[:,:,index] = nmm_pop[:,:,index]    #保存优秀个体
+#                new_fit[index] = nmm_fit[index] #保存优秀个体的适应度函数值
+#                better_number+=1
+        new_pop,new = nmm_pop
         # 更新pop,fit
         tmp_pop = copy.deepcopy(new_pop)
         tmp_fit = copy.deepcopy(new_fit)
@@ -162,6 +174,7 @@ for key in range(1,5):
             print("best_"+ Q_flag +"_"+ nmm_flag +"=",best_Q)
             print("better_number={}".format(better_number))
     end = time.process_time()
+        
     print("spend_time=", end - start)
     
 #    run+=1
