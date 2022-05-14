@@ -233,9 +233,9 @@ def NMM_funcs(G, pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_fla
 def NMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fit):
     for i in range(NP):
         seeds = [i for i in range(n)]
-#        rd.shuffle(seeds)
-#        pick = seeds[:rd.randint(1, n)] # 随机选择一定数量的节点
-        pick = seeds
+        rd.shuffle(seeds)
+        pick = seeds[:rd.randint(1, n)] # 随机选择一定数量的节点
+        # pick = seeds
         # 寻找不合理划分的节点和其对应的邻居节点
         unreasonableNodes = []
         NMM_CD_func(unreasonableNodes, pick,nmm_pop[:,:,i],adj,c,n,threshold_value)
@@ -351,9 +351,9 @@ def NMM_P_func(node_cno_list,nodes,Xi,adj):
         # 获得邻居节点 j 所在的社区       
         j_nodes_c = np.argmax(Xi[:,j_nodes], axis=0)
 #         print("j_nodes_c=",j_nodes_c)
-#        node_cno_list.append((i,rd.choice(j_nodes_c)))  # choice() 依概率选择
-        i_c = np.argmax(np.bincount(j_nodes_c)) # 直接选择概率最大的社区作为i节点划分的社区
-        node_cno_list.append((i,i_c))
+        node_cno_list.append((i,rd.choice(j_nodes_c)))  # choice() 依概率选择
+        # i_c = np.argmax(np.bincount(j_nodes_c)) # 直接选择概率最大的社区作为i节点划分的社区
+        # node_cno_list.append((i,i_c))
             
 # =============================================================================
 #     MNMM_CD_func: 寻找基于模体权重的不合理划分的节点
@@ -436,8 +436,8 @@ def MNMM_P_func(node_cnos,nodes,Xi,adj,motif_adj):
             attr_i_ck = sum([motif_adj[i,j] for j in ck_jnodes])
             c_ps.append((ck,attr_i_ck / attr_sum))
 
-#        c = choice_by_probability(c_ps) #依概率选择
-        c = sorted(c_ps, key=lambda x:(x[1]), reverse=True)[0][0]  # 直接选择概率最大的社区作为i节点划分的社区
+        c = choice_by_probability(c_ps) #依概率选择
+        # c = sorted(c_ps, key=lambda x:(x[1]), reverse=True)[0][0]  # 直接选择概率最大的社区作为i节点划分的社区
         node_cnos.append((i,c))  
 
 # =============================================================================
@@ -557,7 +557,6 @@ def NWMM_nc_revise(node_cps,nmm_pop,N):
         cps = node_cps[i]
         for c_p in cps:
             nmm_pop[c_p[0],i,N] = c_p[1]
-#        nmm_pop[:,i,N] /= np.sum(nmm_pop[:,i,N]) # 归一化
  
 # =============================================================================
 #     choice_by_probability: 依概率选择
@@ -593,7 +592,6 @@ def MMW_func(G,edge, Xi, motif_adj):
     edge_W = 0 # edge的融合权重
     for i in range(len_set):
         # 模体 M1
-
         nodes = Node_set[i] #获得M的点信息
         edges = edge_set[i] #获得模体M的边信息
         # 获得该模体M当前所在的社区

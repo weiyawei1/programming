@@ -56,7 +56,7 @@ edge_all = Gi.get_edgelist()
 n=G1.number_of_nodes()
 NP = 100
 c = 4  #社区的真实划分数
-Gen = 1000  #进化代数
+Gen = 1200  #进化代数
 threshold_value = 0.25  #阈值
 # 各标记列表
 Mlist = {1:"M1",2:"M2",3:"M3",4:"M4",5:"M5",6:"M6",7:"M7",8:"M8"} #模体选择列表
@@ -64,9 +64,9 @@ Qlist = {1:"Q",2:"Qg",3:"Qc_FCD",4:"Qc_OCD",5:"Qov"} # 模块度函数列表
 nmmlist = {1:"NOMM",2:"NMM",3:"MNMM",4:"NWMM"} # nmm操作列表
 # 本次算法使用的标记
 M_flag = Mlist[1]
-Q_flag = Qlist[3] # 模块度函数 Qc
+Q_flag = Qlist[2] # 模块度函数 Qg
 # 独立运行运行次数
-Independent_Runs = 1 # 本次实验独立运行次数
+Independent_Runs = 30 # 本次实验独立运行次数
  
 # =============================================================================
 # 构建基于模体M1的加权网络
@@ -85,86 +85,113 @@ motif_adj = nx.adjacency_matrix(G)
 motif_adj = motif_adj.todense() 
 
 run = 0 # 本程序开始独立运行的次数
-#while (run < Independent_Runs):
-
-# 全局变量设置
-#pop_best_history = np.zeros((c,n,Gen)) # 用于保存历史最优的个体记录
-#best_in_history_Q = [] # 用于保存历史最优Q值
-
-start = time.process_time()
-# =============================================================================
-# 种群初始化，有偏操作
-# =============================================================================
-#种群初始化
-pop = func.init_pop(n, c, NP)  #初始化种群
-fit_values = []
-func.fit_Qs(fit_values,pop,adj,n,c,NP,Q_flag)   #适应度函数值计算 
-
-# 初始化NMi
-nmilist = [] # 用于保存每一代的NMI值
-# 获取真实社区划分列表
-real_mem = []
-with open(path + "/real/" + 'karate_groundtruth_4.txt', mode='r',encoding='UTF-8') as f:
-    real_mem = list(map(int,f.read().splitlines()))
-
-#有偏操作
-bias_pop = func.bias_init_pop(pop, n, c, NP, adj) #对初始化后的种群进行有偏操作
-bias_fit_values = []
-func.fit_Qs(bias_fit_values,bias_pop,adj,n,c,NP,Q_flag) #适应度函数值计算 
-#选择优秀个体并保留到种群
-for index in range(NP):
-    if bias_fit_values[index] > fit_values[index]:
-        pop[:,:,index] = bias_pop[:,:,index] #保存优秀个体
-        fit_values[index] = bias_fit_values[index] #保存优秀个体的适应度函数值
-# =============================================================================
-# Main
-#【使用优化算法进行社区检测】
-# =============================================================================
-for key in range(1,5):
-    nmm_flag = nmmlist[key]
+while (run < Independent_Runs):
     # 全局变量设置
-    pop_best_history = np.zeros((c,n,Gen)) # 用于保存历史最优的个体记录
-    best_in_history_Q = [] # 用于保存历史最优Q值]
-    tmp_pop,tmp_fit =  copy.deepcopy(pop),copy.deepcopy(fit_values)
-    print("=====================================================================================")
-    for gen in tqdm(range(Gen)):
-        # SOSFCD算法
-        (new_pop, new_fit) = alg_func.SOSFCD(tmp_pop, tmp_fit, n, c, NP, adj,Q_flag)
-        # NMM操作
-        (nmm_pop, nmm_fit) = func.NMM_funcs(G2, new_pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_flag)
-        # 选择优秀个体并保留到种群
-        better_number = 0
-        for index in range(NP):
-            if nmm_fit[index] > new_fit[index]:
-                new_pop[:,:,index] = nmm_pop[:,:,index]    #保存优秀个体
-                new_fit[index] = nmm_fit[index] #保存优秀个体的适应度函数值
-                better_number+=1
-                
-        # 更新pop,fit
-        tmp_pop = copy.deepcopy(new_pop)
-        tmp_fit = copy.deepcopy(new_fit)
-        
-        # 记录当代最优个体Xbest，并记录最优个体对应的Q值及NMI
-        # print("best_Q={}".format(max(fit_values)))
-        best_Q = max(tmp_fit)
-        bestx = tmp_pop[:,:,tmp_fit.index(best_Q)]
-        best_in_history_Q.append(best_Q)
-        pop_best_history[:,:,gen] = bestx
-        membership_c = np.argmax(bestx, axis=0)
-        nmi=ig.compare_communities(real_mem, membership_c, method='nmi', remove_none=False)    
-
-        if (gen+1) % Gen ==0:
-            print("#####"+ M_flag +"_SOSFCD_" + Q_flag + "_" + nmm_flag + "_#####")
-            print("gen=",gen+1)
-            print("c_count=",len(set(membership_c)))
-            print("membership_c=",membership_c)
-            print("NMI=",nmi)
-            print("best_"+ Q_flag +"_"+ nmm_flag +"=",best_Q)
-            print("better_number={}".format(better_number))
-    end = time.process_time()
-    print("spend_time=", end - start)
+    #pop_best_history = np.zeros((c,n,Gen)) # 用于保存历史最优的个体记录
+    #best_in_history_Q = [] # 用于保存历史最优Q值
+    Qs_history_NMM_dict = {}
     
-#    run+=1
+    start = time.process_time()
+    # =============================================================================
+    # 种群初始化，有偏操作
+    # =============================================================================
+    #种群初始化
+    pop = func.init_pop(n, c, NP)  #初始化种群
+    fit_values = []
+    func.fit_Qs(fit_values,pop,adj,n,c,NP,Q_flag)   #适应度函数值计算 
+    
+    # 初始化NMi
+    nmilist = [] # 用于保存每一代的NMI值
+    # 获取真实社区划分列表
+    real_mem = []
+    with open(path + "/real/" + 'karate_groundtruth_4.txt', mode='r',encoding='UTF-8') as f:
+        real_mem = list(map(int,f.read().splitlines()))
+    
+    #有偏操作
+    bias_pop = func.bias_init_pop(pop, n, c, NP, adj) #对初始化后的种群进行有偏操作
+    bias_fit_values = []
+    func.fit_Qs(bias_fit_values,bias_pop,adj,n,c,NP,Q_flag) #适应度函数值计算 
+    #选择优秀个体并保留到种群
+    for index in range(NP):
+        if bias_fit_values[index] > fit_values[index]:
+            pop[:,:,index] = bias_pop[:,:,index] #保存优秀个体
+            fit_values[index] = bias_fit_values[index] #保存优秀个体的适应度函数值
+    # =============================================================================
+    # Main
+    #【使用优化算法进行社区检测】
+    # =============================================================================
+    break_falg = 0
+    success_falg = 0
+    for key in range(4,5):
+        nmm_flag = nmmlist[key]
+        print("=====================================================================================")
+        for i in range(30):
+            # 全局变量设置
+            pop_best_history = np.zeros((c,n,Gen)) # 用于保存历史最优的个体记录
+            best_in_history_Q = [] # 用于保存历史最优Q值]
+            tmp_pop,tmp_fit =  copy.deepcopy(pop),copy.deepcopy(fit_values)
+            for gen in tqdm(range(Gen)):
+                # SOSFCD算法
+                (new_pop, new_fit) = alg_func.SOSFCD(tmp_pop, tmp_fit, n, c, NP, adj,Q_flag)
+                # NMM操作
+                (nmm_pop, nmm_fit) = func.NMM_funcs(G2, new_pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_flag)
+                # 选择优秀个体并保留到种群
+                better_number = 0
+                for index in range(NP):
+                    if nmm_fit[index] > new_fit[index]:
+                        new_pop[:,:,index] = nmm_pop[:,:,index]    #保存优秀个体
+                        new_fit[index] = nmm_fit[index] #保存优秀个体的适应度函数值
+                        better_number+=1
+                            
+                # 更新pop,fit
+                tmp_pop = copy.deepcopy(new_pop)
+                tmp_fit = copy.deepcopy(new_fit)
+                
+                # 记录当代最优个体Xbest，并记录最优个体对应的Q值及NMI
+                # print("best_Q={}".format(max(fit_values)))
+                best_Q = max(tmp_fit)
+                bestx = tmp_pop[:,:,tmp_fit.index(best_Q)]
+                best_in_history_Q.append(best_Q)
+                pop_best_history[:,:,gen] = bestx
+                membership_c = np.argmax(bestx, axis=0)
+                if len(set(membership_c)) != c:
+                    break_falg = 1
+                    print("break")
+                    break
+    
+                nmi=ig.compare_communities(real_mem, membership_c, method='nmi', remove_none=False)    
+
+                if (gen+1) % Gen ==0:
+                    print("#####"+ M_flag +"_SOSFCD_" + Q_flag + "_" + nmm_flag + "_#####")
+                    print("gen=",gen+1)
+                    print("c_count=",len(set(membership_c)))
+                    print("membership_c=",membership_c)
+                    print("NMI=",nmi)
+                    print("best_"+ Q_flag +"_"+ nmm_flag +"=",best_Q)
+                    print("better_number={}".format(better_number))
+                    break_falg = 0
+                    Qs_history_NMM_dict[Q_flag +"_"+ nmm_flag] = best_Q
+            #跳出多次循环
+            if break_falg == 0:
+                break
+        end = time.process_time()
+        if break_falg == 1:
+            print("NMM:{},c:{}".format(nmm_flag, len(set(membership_c))))
+            break
+        print("spend_time=", end - start)
+        if key == 4:
+            success_falg =1
+    if success_falg == 1:
+        # break
+        print("#####################running is {0} suceess!#####################".format(run))
+        # 保持数据到文件
+        logs_path = r"./logs/" + str(Q_flag) + "_log.txt"        
+        with open(logs_path, mode='a+',encoding='UTF-8') as log_f:
+            log_f.writelines("============run[" + str(run) + "]==============\n")
+            for key in nmmlist.keys():
+                nmm = nmmlist[key]
+                log_f.writelines(nmm + "=" + str(Qs_history_NMM_dict[Q_flag +"_"+ nmm])+"\n")
+    run+=1
     
 #    # =============================================================================
 #    # 有选择地保存历史信息到文件
