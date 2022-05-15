@@ -2,7 +2,7 @@
 """
 Created on Thu May  5 20:24:28 2022
 
-@author: l
+@author: wyw
 """
 import find_motifs as fm
 import igraph as ig
@@ -24,7 +24,7 @@ func_path = r"data/功能网络"
 brain47_network = func_path + r'/brain47.txt'
 
 # 选择网络
-network = football_network
+network = karate_network
 # 构建网络
 G = nx.read_edgelist(network,create_using=nx.Graph())
 G = G.to_undirected()
@@ -35,6 +35,13 @@ Gi=Gi.subgraph(map(int,G.nodes()))
 Gi=Gi.as_undirected()
 n=G.number_of_nodes()
 edge_all = Gi.get_edgelist()
+
+# 获得无权网络邻接矩阵
+G2 = nx.Graph() 
+G2.add_nodes_from([i for i in range(n)])
+G2.add_edges_from(edge_all)
+adj= nx.adjacency_matrix(G2)
+adj=adj.todense() 
 
 # 创建需要计算的模体
 g = nx.Graph()
@@ -70,16 +77,24 @@ for edge in edge_list:
 #    print("边参与构成模体的数量：",number5)
 
 #节点参与构成模体的集合
-for i in node_list:
-    Node_set,edge_set=fm.node_in_motif_list(G, g, i, directed=False, weighted=False)
-#    print("节点参与构成模体：点集合：",Node_set)
-#    print("节点参与构成模体：边集合：",edge_set)
-for edge in edge_list:
-    Node_set1,edge_set1=fm.edge_in_motif_list(G, g, edge, directed=False, weighted=False)
-#    print("边参与构成模体：点集合：",Node_set1)
-#    print("边参与构成模体：边集合：",edge_set1)
+#for i in node_list:
+#    Node_set,edge_set=fm.node_in_motif_list(G, g, i, directed=False, weighted=False)
+##    print("节点参与构成模体：点集合：",Node_set)
+##    print("节点参与构成模体：边集合：",edge_set)
+for i in range(100*1000):
+    for edge in edge_list:
+        Node_set1,edge_set1=fm.edge_in_motif_list(G, g, edge, directed=False, weighted=False)
+        # print("edge=",edge)
+        # print("边参与构成模体：点集合：",Node_set1)
+        # print("边参与构成模体：边集合：",edge_set1)
 end = time.process_time()
+print("len=",len(edge_list))
 print("spend_time=",end-start)
+
+a=[]
+for i in range(34):
+    a.append(i)
+print(a)
 
 
 

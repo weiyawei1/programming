@@ -64,7 +64,7 @@ Qlist = {1:"Q",2:"Qg",3:"Qc_FCD",4:"Qc_OCD",5:"Qov"} # 模块度函数列表
 nmmlist = {1:"NOMM",2:"NMM",3:"MNMM",4:"NWMM"} # nmm操作列表
 # 本次算法使用的标记
 M_flag = Mlist[1]
-Q_flag = Qlist[1] # 模块度函数 Qg
+Q_flag = Qlist[2] # 模块度函数 Qg
 # 独立运行运行次数
 Independent_Runs = 30 # 本次实验独立运行次数
  
@@ -188,7 +188,7 @@ while (run < Independent_Runs):
         logs_path = r"./logs/" + str(Q_flag) + "_log.txt"        
         with open(logs_path, mode='a+',encoding='UTF-8') as log_f:
             log_f.writelines("============run[" + str(run) + "]==============\n")
-            for key in range(4,0,-1):
+            for key in nmmlist.keys():
                 nmm = nmmlist[key]
                 log_f.writelines(nmm + "=" + str(Qs_history_NMM_dict[Q_flag +"_"+ nmm])+"\n")
     run+=1

@@ -6,15 +6,6 @@ Created on Fri Apr 22 11:31:58 2022
 """
 
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Jan 17 09:55:19 2022
-
-@author: WYW
-"""
-"""
-    motif_FFM_CD_main_v1
-   使用各种优化算法，基于模体的加权网络的社区检测
-"""
 
 import numpy as np
 import igraph as ig
@@ -46,7 +37,7 @@ football_network = path + r'/football.txt'
 polbooks_network = path + r'/polbooks.txt'
 
 # 选择网络
-network = zhang_network
+network = benson_network
 G1 = nx.read_edgelist(network)
 G1 = G1.to_undirected()
 
@@ -62,11 +53,11 @@ edge_all = Gi.get_edgelist()
 # =============================================================================
 n=G1.number_of_nodes()
 NP = 100
-c = 3  #社区的真实划分数
+c = 2  #社区的真实划分数
 M = 1  #模体选择【1:M1,2:M2,3:M3,4:M4,51:M5,6:M6,7:M7,8:M8】 
 Q_flags = [0,1,2,3,4]  # Q_flag: 0:Q 1:Qg 2:Qc_FCD 3:Qc_OCD 4:Qov 
-Q_flag=Q_flags[2] # Qc
-Gen = 20 # 调整次数
+#Q_flag=Q_flags[2] # Qc
+Gen = 1 # 调整次数
 # =============================================================================
 # 构建基于模体M1的加权网络
 # =============================================================================
@@ -96,37 +87,35 @@ with open(r'E:\weiyawei\workspace\motif_FFM_CD\result\bestX.txt', mode='r',encod
 #        nums = list(map(round,nums,[4 for i in range(len(nums))]))
         X[index,:] = np.asarray(nums)
 
+# =============================================================================
+# 融合隶属度和高阶权重信息
+# =============================================================================
+motif_m_adj = copy.deepcopy(motif_adj)
+for edge in edge_all:
+#    print(edge)
+    clist = np.argmax(X,axis = 0)
+    cs = [clist[edge[0]],clist[edge[1]],0]
+    # 寻找基于该边的模体的顶点
+    node_ij = set(np.nonzero(adj[edge[0],:])[1]) & set(np.nonzero(adj[edge[1],:])[1])
+    w_edge = 0 #初始化该条边的权重
+    for node in node_ij:
+        # M(edge[0],dege[1],node)
+        cs[2] = np.argmax(X[:,node])
+        # 获得该模体当前所在的社区
+        M_c = np.argmax(np.bincount(np.array(cs)))
+        # 计算该模体的隶属度之和
+        sum_membership = X[M_c][edge[0]] + X[M_c][edge[1]] + X[M_c][node]
+        # 计算该模体的权重之和
+        sum_w = motif_adj[edge[0],edge[1]] + motif_adj[edge[0],node] + motif_adj[node,edge[1]]
+        # 计算各条边的权重
+        w_edge += (motif_adj[edge[0],edge[1]]/sum_w)*sum_membership
+    w_edge += motif_m_adj[edge[0],edge[1]]
+    motif_m_adj[edge[0],edge[1]] = round(w_edge,3)
+    motif_m_adj[edge[1],edge[0]] = round(w_edge,3)
 
-for gen in range(Gen):
-    # =============================================================================
-    # 融合隶属度和高阶权重信息
-    # =============================================================================
-    motif_m_adj = copy.deepcopy(motif_adj)
-    for edge in edge_all:
-    #    print(edge)
-        clist = np.argmax(X,axis = 0)
-        cs = [clist[edge[0]],clist[edge[1]],0]
-        # 寻找基于该边的模体的顶点
-        node_ij = set(np.nonzero(adj[edge[0],:])[1]) & set(np.nonzero(adj[edge[1],:])[1])
-        w_edge = 0 # 初始化该条边的权重
-        for node in node_ij:
-            # M(edge[0],dege[1],node)
-            cs[2] = np.argmax(X[:,node])
-            # 获得该模体当前所在的社区
-            c = np.argmax(np.bincount(np.array(cs)))
-            # 计算该模体的隶属度之和
-            sum_membership = X[c][edge[0]] + X[c][edge[1]] + X[c][node]
-            # 计算该模体的权重之和
-            sum_w = motif_adj[edge[0],edge[1]] + motif_adj[edge[0],node] + motif_adj[node,edge[1]]
-            # 计算各条边的权重
-            w_edge += (motif_adj[edge[0],edge[1]]/sum_w)*sum_membership
-        w_edge += motif_m_adj[edge[0],edge[1]]
-        motif_m_adj[edge[0],edge[1]] = round(w_edge,3)
-        motif_m_adj[edge[1],edge[0]] = round(w_edge,3)
-    
-    # =============================================================================
-    # 使用融合后的权重信息进行节点隶属度的调整
-    # =============================================================================
+# =============================================================================
+# 使用融合后的权重信息进行节点隶属度的调整
+# =============================================================================
 #    nodes = [i for i in range(n)]
 #    for i in nodes:
 #        ### 计算当前该点node的隶属度
@@ -138,44 +127,53 @@ for gen in range(Gen):
 #        node_c = dict(zip(j_e_nodes,j_nodes_c))
 #        
 #        ## 计算隶吸引力attr（隶属度）
-#        for c in cs:
+#        for c1 in cs:
 #            attr_ic,W,w = 0,0,0 # 吸引力，权重总和，i节点对c社区的权重总和
 #            for node in j_e_nodes:
-#                if node_c[node] == c:
+#                if node_c[node] == c1:
 #                    w += motif_m_adj[i,node]
 #                W += motif_m_adj[i,node]
 #            attr_ic = w/W  # 吸引力计算公式
 #            # 更改隶属度表
-#            X[c,i] = attr_ic
-    
-            
-            
-    # =============================================================================
-    # 计算隶属度值
-    # =============================================================================
-    W = np.sum(adj) # 权值之和
-    m = np.sum(adj, axis=0) # adj 各列之和
-    fit = func.fit_Q(X,adj,n,c,W,m,Q_flag)
-    #membership_c = np.argmax(X, axis=0)
-    #
-    ##membership = [0,0,0,0,1,1,1,1,1]
-    #fit=ig.GraphBase.modularity(Gi, membership_c)
-    print("gen={0},fit={1}".format(gen+1,round(fit,6)))
+##            if attr_ic > 0 and i == 8:
+##                
+##                print("c={},node={},attr={},node_c={}".format(c1,i,attr_ic,node_c))
+#            X[c1,i] = attr_ic
+#    
+# =============================================================================
+# 计算隶属度值
+# =============================================================================
+#W = np.sum(adj) # 权值之和
+#m = np.sum(adj, axis=0) # adj 各列之和
+#for Q_flag in Q_flags:
+#    fit = func.fit_Q(X,adj,n,c,W,m,Q_flag)
+#    membership_c = np.argmax(X, axis=0)
+#    #
+#    ##membership = [0,0,0,0,1,1,1,1,1]
+#    #fit=ig.GraphBase.modularity(Gi, membership_c)
+#    print(membership_c)
+#    print("Qflag={0},fit={1}\n".format(Q_flag,round(fit,4)))
 
+# =============================================================================
+# NMI计算
+# =============================================================================
+membership_c = np.argmax(X, axis=0)
+print(membership_c)
+real_mem = [0,0,0,0,0,1,1,1,1,1]
+nmi=ig.compare_communities(real_mem, membership_c, method='nmi', remove_none=False)    
+print("nmi=",nmi) 
 
-
+# =============================================================================
+# 融合权重 
+# =============================================================================
 #for edge in edge_all:
 #    print("【{0},{1}】={2}".format(edge[0]+1,edge[1]+1,motif_m_adj[edge[0],edge[1]]))
 
 ## =============================================================================
 ## Test
 ## =============================================================================
-#a=(1.222+2.935+2.935+1.514)/(1.222+2.935+2.935+1.514+1.343+1.343+1.343)
+#a=(1.275)/(1.275+3.52+1.47)
 #print(round(a,4),round(1-a,4))
-
-
-
-
 
 
 
