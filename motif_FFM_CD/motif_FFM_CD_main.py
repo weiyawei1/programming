@@ -60,7 +60,11 @@ edge_all = Gi.get_edgelist()
 # =============================================================================
 n=G1.number_of_nodes()
 NP = 100
+<<<<<<< HEAD
 c = 7  #社区的真实划分数
+=======
+c = 2  #社区的真实划分数
+>>>>>>> 0afcac1d31b11272d8d05a4f789ff593e87ff0f5
 Gen = 1000  #进化代数
 threshold_value = 0.25  #阈值
 # 各标记列表
@@ -69,7 +73,11 @@ Qlist = {1:"Q",2:"Qg",3:"Qc_FCD",4:"Qc_OCD",5:"Qov"} # 模块度函数列表
 nmmlist = {1:"NOMM",2:"NMM",3:"MNMM",4:"NWMM"} # nmm操作列表
 # 本次算法使用的标记
 M_flag = Mlist[1]
+<<<<<<< HEAD
 Q_flag = Qlist[3] # 模块度函数 Qg
+=======
+Q_flag = Qlist[3] # 模块度函数 Qc
+>>>>>>> 0afcac1d31b11272d8d05a4f789ff593e87ff0f5
 # 独立运行运行次数
 Independent_Runs = 11 # 本次实验独立运行次数
  
@@ -132,11 +140,19 @@ while (run < Independent_Runs):
     func.fit_Qs(fit_values,pop,adj,n,c,NP,Q_flag)   #适应度函数值计算 
     
     # 初始化NMi
+<<<<<<< HEAD
 #    nmilist = [] # 用于保存每一代的NMI值
 #    # 获取真实社区划分列表
 #    real_mem = []
 #    with open(path + "/real/" + 'karate_groundtruth_2.txt', mode='r',encoding='UTF-8') as f:
 #        real_mem = list(map(int,f.read().splitlines()))
+=======
+    nmilist = [] # 用于保存每一代的NMI值
+    # 获取真实社区划分列表
+    real_mem = []
+    with open(path + "/real/" + 'karate_groundtruth_2.txt', mode='r',encoding='UTF-8') as f:
+        real_mem = list(map(int,f.read().splitlines()))
+>>>>>>> 0afcac1d31b11272d8d05a4f789ff593e87ff0f5
     
     #有偏操作
     # bias_pop = func.bias_init_pop(pop, n, c, NP, adj) #对初始化后的种群进行有偏操作
@@ -153,7 +169,11 @@ while (run < Independent_Runs):
     # =============================================================================
     break_falg = 0
     success_falg = 0
+<<<<<<< HEAD
     nmm_index = 0
+=======
+    nmm_count = 0
+>>>>>>> 0afcac1d31b11272d8d05a4f789ff593e87ff0f5
     for key in range(4,0,-1):
         nmm_flag = nmmlist[key]
         print("=====================================================================================")
@@ -203,7 +223,11 @@ while (run < Independent_Runs):
                     print("better_number={}".format(better_number))
                     break_falg = 0
                     Qs_history_NMM_dict[Q_flag +"_"+ nmm_flag] = best_Q
+<<<<<<< HEAD
                     nmm_index+=1
+=======
+                    nmm_count+=1
+>>>>>>> 0afcac1d31b11272d8d05a4f789ff593e87ff0f5
             #跳出多次循环
             if break_falg == 0:
                 break
@@ -212,13 +236,21 @@ while (run < Independent_Runs):
             print("NMM:{},c:{}".format(nmm_flag, len(set(membership_c))))
             break
         print("spend_time=", end - start)
+<<<<<<< HEAD
         if nmm_index == 4:
+=======
+        if nmm_count == 4:
+>>>>>>> 0afcac1d31b11272d8d05a4f789ff593e87ff0f5
             success_falg =1
     if success_falg == 1:
         # break
         print("#####################running is {0} suceess!#####################".format(run))
         # 保持数据到文件
+<<<<<<< HEAD
         logs_path = r"./logs/" + "lesmis/" + str(c)+"_" +str(Q_flag) + "_log.txt"        
+=======
+        logs_path = r"./logs/"+ str(c) + "_" + str(Q_flag) + "_log.txt"        
+>>>>>>> 0afcac1d31b11272d8d05a4f789ff593e87ff0f5
         with open(logs_path, mode='a+',encoding='UTF-8') as log_f:
             log_f.writelines("============run[" + str(run) + "]==============\n")
             for key in range(4,0,-1):
