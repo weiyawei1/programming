@@ -24,6 +24,7 @@ from libc.stdlib cimport malloc, free
 @cython.boundscheck(False) 
 @cython.wraparound(False) 
 @cython.nonecheck(False)
+@cython.cdivision(True)
 cpdef double fit_Qg(double[:,:] X, long[:,:] adj, long n, long c, long W, long[:,:] m):
     cdef double Qg = 0.0
     for k in range(c):
@@ -45,6 +46,7 @@ cpdef double fit_Qg(double[:,:] X, long[:,:] adj, long n, long c, long W, long[:
 @cython.boundscheck(False) 
 @cython.wraparound(False) 
 @cython.nonecheck(False)
+@cython.cdivision(True)
 cpdef double fit_Q(double[:,:] X, long[:,:] adj, long n, long c, long W, long[:,:] m,long [:] mod):
     cdef double Q = 0.0
     for i in range(n):
@@ -65,6 +67,7 @@ cpdef double fit_Q(double[:,:] X, long[:,:] adj, long n, long c, long W, long[:,
 @cython.boundscheck(False) 
 @cython.wraparound(False) 
 @cython.nonecheck(False)
+@cython.cdivision(True)
 cpdef double fit_Qc(double[:,:] X, long[:,:] adj, long n, long c, long W, long[:,:] m):
     cdef double u_ki,u_kj,minu_kij,temp,sij
     cdef double Qc = 0.0
@@ -99,6 +102,7 @@ cpdef double fit_Qc(double[:,:] X, long[:,:] adj, long n, long c, long W, long[:
 @cython.boundscheck(False) 
 @cython.wraparound(False) 
 @cython.nonecheck(False)
+@cython.cdivision(True)
 cpdef double fit_Qov(double[:,:] X, long[:,:] adj, long n, long c, long W, long[:,:] m):
     cdef double Qov = 0.0, wSum, lSum
     cdef double** r
@@ -158,9 +162,57 @@ cpdef double fit_Qov(double[:,:] X, long[:,:] adj, long n, long c, long W, long[
     free(r)
     free(w)
     Qov = Qov*1.0/W
-    return Qov          
-        
-        
+    return Qov      
+
+# =============================================================================
+#     getMEM_adj: 获得Xi的模体，边及隶属度融合的权重矩阵
+#     X: 种群中的个体
+#     adj: 加权邻接矩阵
+#     n: 网络节点数目
+#     c: 社区划分的数目
+#     W: 加权网络邻接矩阵的总权值之和
+#     M: 模体阶数，默认为3
+# =============================================================================
+@cython.boundscheck(False) 
+@cython.wraparound(False) 
+@cython.nonecheck(False)
+@cython.cdivision(True)
+cpdef double getEdgeW(double[:,:] X, long[:,:] me_adj, long[:,:] node_set, long[:,:,:] edge_set,long i, long j, long c, long lenSet, long M_n, long M_e):
+    cdef double m_W = 0.0, tmp_m, sum_membership, sum_w
+    cdef int M_c, c_max
+    # 创建一个一维数组, 并以0值初始化
+    i_M_c = <int*>malloc(c * sizeof(int*))
+    for i_c in range(c):
+        i_M_c[i_c]=0
+    for m_index in range(lenSet): #第m个模体
+        # 模体 M1
+        # 获得该模体M当前所在的社区
+        M_c = 0 #初始化M_c值
+        for i_index in range(M_n): #模体中的第i个节点
+            membership = 0.0 # 初始化membership
+            c_max=0
+            for c_index in range(c):#节点i所在的第c个社区
+                tmp_m = X[c_index,node_set[i_index,m_index]]
+                if tmp_m > membership:
+                    membership = tmp_m
+                    c_max=c_index         
+            i_M_c[c_max] += 1
+        for c_index in range(c): #获得模体M所在社区
+            if i_M_c[c_index] > M_c:
+                M_c = c_index
+            i_M_c[c_index] = 0
+        # 计算该模体的隶属度之和
+        sum_membership=0.0
+        for i_index in range(M_n):
+            sum_membership += X[M_c,node_set[i_index,m_index]]
+        # 计算该模体的权重之和
+        sum_w = 0.0 #初始化sum_w值
+        for e_index in range(M_e):
+            sum_w += me_adj[edge_set[e_index,0,m_index],edge_set[e_index,1,m_index]]
+        # 计算该边的融合权重
+        m_W += (me_adj[i,j]/sum_w*sum_membership)
+    
+    return me_adj[i,j] + m_W    
         
         
         

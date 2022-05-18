@@ -22,6 +22,9 @@ import motif_network_construct as net_stru_func
 import algorithm_FCD_function as alg_func
 import motif_FFM_CD_function as func
 
+# 引入外部函数
+import find_motifs as fm
+
 # =============================================================================
 # 网络信息
 # network
@@ -34,12 +37,14 @@ karate_network = path + r'/karate.txt'
 dolphins_network = path + r'/dolphins.txt'
 football_network = path + r'/football.txt'
 polbooks_network = path + r'/polbooks.txt'
+lesmis_network = path + r'/lesmis.txt'
+
 ## 功能网络
 func_path = r"data/功能网络"
 brain47_network = func_path + r'/brain47.txt'
 
 # 选择网络
-network = karate_network
+network = lesmis_network
 G1 = nx.read_edgelist(network,create_using=nx.Graph())
 G1 = G1.to_undirected()
 
@@ -55,7 +60,7 @@ edge_all = Gi.get_edgelist()
 # =============================================================================
 n=G1.number_of_nodes()
 NP = 100
-c = 4  #社区的真实划分数
+c = 7  #社区的真实划分数
 Gen = 1000  #进化代数
 threshold_value = 0.25  #阈值
 # 各标记列表
@@ -64,9 +69,9 @@ Qlist = {1:"Q",2:"Qg",3:"Qc_FCD",4:"Qc_OCD",5:"Qov"} # 模块度函数列表
 nmmlist = {1:"NOMM",2:"NMM",3:"MNMM",4:"NWMM"} # nmm操作列表
 # 本次算法使用的标记
 M_flag = Mlist[1]
-Q_flag = Qlist[1] # 模块度函数 Qg
+Q_flag = Qlist[3] # 模块度函数 Qg
 # 独立运行运行次数
-Independent_Runs = 30 # 本次实验独立运行次数
+Independent_Runs = 11 # 本次实验独立运行次数
  
 # =============================================================================
 # 构建基于模体M1的加权网络
@@ -83,6 +88,32 @@ adj=adj.todense()
 # 构建基于模体的加权网络邻接矩阵motif_adj
 motif_adj = nx.adjacency_matrix(G)
 motif_adj = motif_adj.todense() 
+
+# =============================================================================
+# 获得基于模体M1的，每条边参与构建的模体集合(点集与边集)
+# =============================================================================
+g = nx.Graph()
+# 3阶模体
+g.add_nodes_from([1, 2, 3])
+g.add_edges_from([(1, 2), (2, 3), (3, 1)])  # 连通
+edge_dict = {}
+for edge in edge_all:
+    Node_set,edge_set=fm.edge_in_motif_list(G2, g, edge, directed=False, weighted=False)
+    if len(Node_set) == 0:
+        edge_dict[edge] = ()
+        edge_dict[(edge[1],edge[0])] = ()
+        continue
+    edgeSet = np.zeros((3,2,len(edge_set)), dtype = int)
+    nodeSet = np.zeros((3,len(Node_set)), dtype = int)
+    for index, m_edge in enumerate(edge_set):
+        for index1, e in enumerate(m_edge):
+            edgeSet[index1,0,index],edgeSet[index1,1,index] = e[0],e[1]
+            
+    for index, nodes in enumerate(Node_set):
+        for index1, node in enumerate(nodes):
+            nodeSet[index1,index] = node
+    edge_dict[edge] = (nodeSet,edgeSet)
+    edge_dict[(edge[1],edge[0])] = edge_dict[edge]
 
 run = 0 # 本程序开始独立运行的次数
 while (run < Independent_Runs):
@@ -101,11 +132,11 @@ while (run < Independent_Runs):
     func.fit_Qs(fit_values,pop,adj,n,c,NP,Q_flag)   #适应度函数值计算 
     
     # 初始化NMi
-    nmilist = [] # 用于保存每一代的NMI值
-    # 获取真实社区划分列表
-    real_mem = []
-    with open(path + "/real/" + 'karate_groundtruth_4.txt', mode='r',encoding='UTF-8') as f:
-        real_mem = list(map(int,f.read().splitlines()))
+#    nmilist = [] # 用于保存每一代的NMI值
+#    # 获取真实社区划分列表
+#    real_mem = []
+#    with open(path + "/real/" + 'karate_groundtruth_2.txt', mode='r',encoding='UTF-8') as f:
+#        real_mem = list(map(int,f.read().splitlines()))
     
     #有偏操作
     # bias_pop = func.bias_init_pop(pop, n, c, NP, adj) #对初始化后的种群进行有偏操作
@@ -122,10 +153,11 @@ while (run < Independent_Runs):
     # =============================================================================
     break_falg = 0
     success_falg = 0
+    nmm_index = 0
     for key in range(4,0,-1):
         nmm_flag = nmmlist[key]
         print("=====================================================================================")
-        for i in range(15):
+        for i in range(10):
             # 全局变量设置
             pop_best_history = np.zeros((c,n,Gen)) # 用于保存历史最优的个体记录
             best_in_history_Q = [] # 用于保存历史最优Q值]
@@ -134,7 +166,7 @@ while (run < Independent_Runs):
                 # SOSFCD算法
                 (new_pop, new_fit) = alg_func.SOSFCD(tmp_pop, tmp_fit, n, c, NP, adj,Q_flag)
                 # NMM操作
-                (nmm_pop, nmm_fit) = func.NMM_funcs(G2, new_pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_flag)
+                (nmm_pop, nmm_fit) = func.NMM_funcs(edge_dict, new_pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_flag)
                 # 选择优秀个体并保留到种群
                 better_number = 0
                 for index in range(NP):
@@ -154,23 +186,24 @@ while (run < Independent_Runs):
                 best_in_history_Q.append(best_Q)
                 pop_best_history[:,:,gen] = bestx
                 membership_c = np.argmax(bestx, axis=0)
-                if len(set(membership_c)) != c:
-                    break_falg = 1
-                    print("break")
-                    break
+#                if len(set(membership_c)) != c:
+#                    break_falg = 1
+#                    print("break")
+#                    break
     
-                nmi=ig.compare_communities(real_mem, membership_c, method='nmi', remove_none=False)    
+#                nmi=ig.compare_communities(real_mem, membership_c, method='nmi', remove_none=False)    
 
                 if (gen+1) % Gen ==0:
                     print("#####"+ M_flag +"_SOSFCD_" + Q_flag + "_" + nmm_flag + "_#####")
                     print("gen=",gen+1)
                     print("c_count=",len(set(membership_c)))
                     print("membership_c=",membership_c)
-                    print("NMI=",nmi)
+#                    print("NMI=",nmi)
                     print("best_"+ Q_flag +"_"+ nmm_flag +"=",best_Q)
                     print("better_number={}".format(better_number))
                     break_falg = 0
                     Qs_history_NMM_dict[Q_flag +"_"+ nmm_flag] = best_Q
+                    nmm_index+=1
             #跳出多次循环
             if break_falg == 0:
                 break
@@ -179,13 +212,13 @@ while (run < Independent_Runs):
             print("NMM:{},c:{}".format(nmm_flag, len(set(membership_c))))
             break
         print("spend_time=", end - start)
-        if key == 4:
+        if nmm_index == 4:
             success_falg =1
     if success_falg == 1:
         # break
         print("#####################running is {0} suceess!#####################".format(run))
         # 保持数据到文件
-        logs_path = r"./logs/" + str(Q_flag) + "_log.txt"        
+        logs_path = r"./logs/" + "lesmis/" + str(c)+"_" +str(Q_flag) + "_log.txt"        
         with open(logs_path, mode='a+',encoding='UTF-8') as log_f:
             log_f.writelines("============run[" + str(run) + "]==============\n")
             for key in range(4,0,-1):

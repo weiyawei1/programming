@@ -19,12 +19,14 @@ karate_network = path + r'/karate.txt'
 dolphins_network = path + r'/dolphins.txt'
 football_network = path + r'/football.txt'
 polbooks_network = path + r'/polbooks.txt'
+lesmis_network = path + r'/lesmis.txt'
+
 ## 功能网络
 func_path = r"data/功能网络"
 brain47_network = func_path + r'/brain47.txt'
 
 # 选择网络
-network = football_network
+network = lesmis_network
 # 构建网络
 G = nx.read_edgelist(network,create_using=nx.Graph())
 G = G.to_undirected()
@@ -45,8 +47,12 @@ adj=adj.todense()
 
 # 创建需要计算的模体
 g = nx.Graph()
+# 3阶模体
 g.add_nodes_from([1, 2, 3])
 g.add_edges_from([(1, 2), (2, 3), (3, 1)])  # 连通
+# 4阶模体
+#g.add_nodes_from([1, 2, 3, 4])
+#g.add_edges_from([(1, 2), (2, 3), (3, 4), (4, 1)])  # 连通
 nx.draw(g,with_labels=True)
 # 计算模体在网络中的数量
 number3 = fm.total_motif_num(G, g, directed=False, weighted=False)#总模体数
@@ -81,11 +87,12 @@ for edge in edge_list:
 #    Node_set,edge_set=fm.node_in_motif_list(G, g, i, directed=False, weighted=False)
 ##    print("节点参与构成模体：点集合：",Node_set)
 ##    print("节点参与构成模体：边集合：",edge_set)
+start = time.process_time()
 for edge in edge_list:
     Node_set1,edge_set1=fm.edge_in_motif_list(G, g, edge, directed=False, weighted=False)
-    print("edge=",edge)
-    print("边参与构成模体：点集合：",Node_set1)
-    print("边参与构成模体：边集合：",edge_set1)
+#    print("edge=",edge)
+#    print("边参与构成模体：点集合：",Node_set1)
+#    print("边参与构成模体：边集合：",edge_set1)
 end = time.process_time()
 print("spend_time=",end-start)
 

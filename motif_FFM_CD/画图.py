@@ -15,7 +15,8 @@ colors = ['#eb8f90', '#ffb471', '#adbed2', '#12406a']
 options = {'font_family': 'serif','font_size': '8', 'font_color': '#ffffff'} 
 G = nx.read_edgelist(r"data/经典数据集/karate.txt",nodetype=int)
 G = G.to_undirected()
-community_list=[[0, 1, 2, 3, 7, 9, 11, 12, 13, 17, 19, 21],[4, 5, 6, 10, 16],[8, 14, 15, 18, 20, 22, 26, 29, 30, 32, 33],[23, 24, 25, 27, 28, 31]]#karate
+# community_list=[[0, 1, 2, 3, 7, 9, 11, 12, 13, 17, 19, 21],[4, 5, 6, 10, 16],[8, 14, 15, 18, 20, 22, 26, 29, 30, 32, 33],[23, 24, 25, 27, 28, 31]]#karate
+community_list=[[0, 1, 2, 3, 7, 9, 11, 12, 13, 17, 19, 21],[4, 5, 6, 10, 16],[8, 14, 15, 18, 20, 22, 26, 29, 30, 32, 33, 23, 24, 25, 27, 28, 31]]#karate
 pos = nx.spring_layout(G) 
 nx.draw(G,pos,edge_color="gray",with_labels=True, node_size = 270,**options)
 for i in range(len(community_list)):
