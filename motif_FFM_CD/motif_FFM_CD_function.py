@@ -548,31 +548,6 @@ def MMW_func(edge_dict,edge, Xi, me_adj, c):
         edge_W = cfunc.getEdgeW(Xi, me_adj, node_set, edge_set, edge[0], edge[1], c ,node_set.shape[1],node_set.shape[0],edge_set.shape[0])
     return edge_W 
 
-#def MMW_func(edge_dict,edge, Xi, me_adj):
-#    # 寻找基于该边的模体M1的顶点    
-#    if len(edge_dict[edge]) == 0: # 若该条边未参与模体构建，则返回边权重
-#        return me_adj[edge[0],edge[1]]
-#    else:
-#        # 若该条边参与了模体M1的构建
-#        node_set, edge_set = edge_dict[edge]
-##        print("node_set=",node_set)
-##        edge_W = 0 # edge的融合权重
-#        edge_W = cfunc.getEdgeW(Xi, me_adj, node_set, edge_set, edge[0], edge[1], 5 ,node_set.shape[1],node_set.shape[0],edge_set.shape[0])
-##        print(edge_W)
-#    #    for i in range(len_set):
-#    #        # 模体 M1
-#    #        nodes = node_set[i] #获得M的点信息
-#    #        edges = edge_set[i] #获得模体M的边信息
-#    #        # 获得该模体M当前所在的社区
-#    #        M_c = np.argmax(np.bincount(np.array([np.argmax(Xi[:,i]) for i in nodes])))
-#    #        # 计算该模体的隶属度之和
-#    #        sum_membership = sum([Xi[M_c][i] for i in nodes])
-#    #        # 计算该模体的权重之和
-#    #        sum_w = sum([me_adj[edge1[0],edge1[1]] for edge1 in edges])
-#    #        # 计算该边的融合权重
-#    #        edge_W += ((me_adj[edge[0],edge[1]]/sum_w)*sum_membership + me_adj[edge[0],edge[1]])
-#
-#    return edge_W 
  # =============================================================================
  #     pop_inherit: 继承以前的种群
  #     node_cnos_attrs: 节点_社区编号_归属程度
