@@ -60,7 +60,7 @@ edge_all = Gi.get_edgelist()
 # =============================================================================
 n=G1.number_of_nodes()
 NP = 100
-c = 4  #社区的真实划分数
+c = 5  #社区的真实划分数
 Gen = 1000  #进化代数
 threshold_value = 0.25  #阈值
 # 各标记列表
@@ -69,7 +69,7 @@ Qlist = {1:"Q",2:"Qg",3:"Qc_FCD",4:"Qc_OCD",5:"Qov"} # 模块度函数列表
 nmmlist = {1:"NOMM",2:"NMM",3:"MNMM",4:"NWMM"} # nmm操作列表
 # 本次算法使用的标记
 M_flag = Mlist[1]
-Q_flag = Qlist[3] # 模块度函数 Qg
+Q_flag = Qlist[3] # 模块度函数 Qc
 # 独立运行运行次数
 Independent_Runs = 11 # 本次实验独立运行次数
  
@@ -122,7 +122,6 @@ while (run < Independent_Runs):
     #best_in_history_Q = [] # 用于保存历史最优Q值
     Qs_history_NMM_dict = {}
     
-    start = time.process_time()
     # =============================================================================
     # 种群初始化，有偏操作
     # =============================================================================
@@ -132,11 +131,11 @@ while (run < Independent_Runs):
     func.fit_Qs(fit_values,pop,adj,n,c,NP,Q_flag)   #适应度函数值计算 
     
     # 初始化NMi
-#    nmilist = [] # 用于保存每一代的NMI值
-#    # 获取真实社区划分列表
-#    real_mem = []
-#    with open(path + "/real/" + 'karate_groundtruth_2.txt', mode='r',encoding='UTF-8') as f:
-#        real_mem = list(map(int,f.read().splitlines()))
+    # nmilist = [] # 用于保存每一代的NMI值
+    # # 获取真实社区划分列表
+    # real_mem = []
+    # with open(path + "/real/" + 'dolphins_groundtruth.txt', mode='r',encoding='UTF-8') as f:
+    #     real_mem = list(map(int,f.read().splitlines()))
     
     #有偏操作
     # bias_pop = func.bias_init_pop(pop, n, c, NP, adj) #对初始化后的种群进行有偏操作
@@ -157,6 +156,7 @@ while (run < Independent_Runs):
     for key in range(4,0,-1):
         nmm_flag = nmmlist[key]
         print("=====================================================================================")
+        start = time.process_time()
         for i in range(10):
             # 全局变量设置
             pop_best_history = np.zeros((c,n,Gen)) # 用于保存历史最优的个体记录
@@ -191,14 +191,14 @@ while (run < Independent_Runs):
                     print("break")
                     break
     
-#                nmi=ig.compare_communities(real_mem, membership_c, method='nmi', remove_none=False)    
+                # nmi=ig.compare_communities(real_mem, membership_c, method='nmi', remove_none=False)    
 
                 if (gen+1) % Gen ==0:
                     print("#####"+ M_flag +"_SOSFCD_" + Q_flag + "_" + nmm_flag + "_#####")
                     print("gen=",gen+1)
                     print("c_count=",len(set(membership_c)))
                     print("membership_c=",membership_c)
-#                    print("NMI=",nmi)
+                    # print("NMI=",nmi)
                     print("best_"+ Q_flag +"_"+ nmm_flag +"=",best_Q)
                     print("better_number={}".format(better_number))
                     break_falg = 0

@@ -258,7 +258,7 @@ def MNMM(pop, n, c, NP, adj, motif_adj, threshold_value, Q_flag, nmm_pop, nmm_fi
 #     return: nmm_pop, nmm_fit nmm种群, 适应度值
 # =============================================================================
 def NWMM(edge_dict, pop, n, c, NP, adj, motif_adj, me_adj, threshold_value, Q_flag, nmm_pop, nmm_fit):
-    for i in range(NP):      
+    for p in range(NP):      
         # 随机节点选择
         seeds = [i for i in range(n)]
         rd.shuffle(seeds)
@@ -266,14 +266,14 @@ def NWMM(edge_dict, pop, n, c, NP, adj, motif_adj, me_adj, threshold_value, Q_fl
 #        pick = seeds
         # 寻找不合理划分的节点和其对应的邻居节点
         unreasonableNodes = []
-        NWMM_CD_func(edge_dict, unreasonableNodes,pick,nmm_pop[:,:,i],adj,motif_adj, me_adj, c, n,threshold_value)
+        NWMM_CD_func(edge_dict, unreasonableNodes,pick,nmm_pop[:,:,p],adj,motif_adj, me_adj, c, n,threshold_value)
         # 获得当前节点对各个社区的隶属程度
-        node_cnos = [] # 通过U=U+0.5调整
         node_cps = {} # 通过 attr(i,ck)调整
-        NWMM_P_func(edge_dict, node_cnos,node_cps,unreasonableNodes,nmm_pop[:,:,i],adj,motif_adj, me_adj, c)
+        node_cnos = [] # 通过U=U+0.5调整
+        NWMM_P_func(edge_dict, node_cnos,node_cps,unreasonableNodes,nmm_pop[:,:,p],adj,motif_adj, me_adj, c)
         # 修改该节点的隶属度值，对该节点重新划分社区
-        NWMM_nc_revise(node_cps,nmm_pop,i)
-        # unreasonableNodes_revise(node_cnos,nmm_pop,i)
+        NWMM_nc_revise(node_cps,nmm_pop,p)
+        unreasonableNodes_revise(node_cnos,nmm_pop,p)
 
     # 计算该种群的适应度函数值    
     fit_Qs(nmm_fit,nmm_pop,adj,n,c,NP,Q_flag)   #适应度函数值计算 
@@ -477,13 +477,13 @@ def NWMM_P_func(edge_dict, node_cnos,node_cps,nodes,Xi,adj,motif_adj, me_adj, c)
             # 计算节点i对社区c的归属程度
             attr_i_ck = sum([MMW_func(edge_dict, (i,j), Xi, me_adj, c) for j in ck_jnodes])
             c_ps.append((ck,attr_i_ck / attr_sum))
-        node_cps[i] = c_ps #通过attr调整
-        # c = choice_by_probability(c_ps) #依概率选择
-        # c_pmax = sorted(copy.deepcopy(c_ps), key=lambda x:(x[1]), reverse=True)[0][0]  # 直接选择概率最大的社区作为i节点划分的社区
-        # if c == c_pmax:
-        #     node_cps[i] = c_ps #通过attr调整
-        # else:
-        #     node_cnos.append((i,c)) #通过U=U+0.5调整
+        # node_cps[i] = c_ps #通过attr调整
+        i_c = choice_by_probability(c_ps) #依概率选择
+        c_pmax = sorted(copy.deepcopy(c_ps), key=lambda x:(x[1]), reverse=True)[0][0]  # 直接选择概率最大的社区作为i节点划分的社区
+        if i_c == c_pmax:
+            node_cps[i] = c_ps #通过attr调整
+        else:
+            node_cnos.append((i,i_c)) #通过U=U+0.5调整
 
 
       
