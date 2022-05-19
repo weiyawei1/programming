@@ -211,7 +211,7 @@ cpdef double getEdgeW(double[:,:] X, long[:,:] me_adj, long[:,:] node_set, long[
             sum_w += me_adj[edge_set[e_index,0,m_index],edge_set[e_index,1,m_index]]
         # 计算该边的融合权重
         m_W += (me_adj[i,j]/sum_w*sum_membership)
-    
+    free(i_M_c)
     return me_adj[i,j] + m_W    
         
         
