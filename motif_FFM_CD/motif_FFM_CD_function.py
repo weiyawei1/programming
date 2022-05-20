@@ -263,6 +263,7 @@ def NWMM(edge_dict, pop, n, c, NP, adj, motif_adj, me_adj, threshold_value, Q_fl
         seeds = [i for i in range(n)]
         rd.shuffle(seeds)
         pick = seeds[:rd.randint(1, n)] # 随机选择一定数量的节点
+#        pick = [39]
 #        pick = seeds
         # 寻找不合理划分的节点和其对应的邻居节点
         unreasonableNodes = []
@@ -476,14 +477,20 @@ def NWMM_P_func(edge_dict, node_cnos,node_cps,nodes,Xi,adj,motif_adj, me_adj, c)
             ck_jnodes = [key for key in j_node_c_dict.keys() if j_node_c_dict[key] == ck] # 获得社区ck中的个节点
             # 计算节点i对社区c的归属程度
             attr_i_ck = sum([MMW_func(edge_dict, (i,j), Xi, me_adj, c) for j in ck_jnodes])
-            c_ps.append((ck,attr_i_ck / attr_sum))
-        # node_cps[i] = c_ps #通过attr调整
-        i_c = choice_by_probability(c_ps) #依概率选择
-        c_pmax = sorted(copy.deepcopy(c_ps), key=lambda x:(x[1]), reverse=True)[0][0]  # 直接选择概率最大的社区作为i节点划分的社区
-        if i_c == c_pmax:
+            c_ps.append((ck,attr_i_ck / attr_sum))    
+        c_ps = sorted(copy.deepcopy(c_ps), key=lambda x:(x[1]), reverse=True)
+        if c_ps[0][1] != c_ps[-1][1]:
             node_cps[i] = c_ps #通过attr调整
         else:
+            i_c = rd.choice(j_nodes_c)
             node_cnos.append((i,i_c)) #通过U=U+0.5调整
+#        node_cps[i] = c_ps #通过attr调整
+#        i_c = choice_by_probability(c_ps) #依概率选择
+#        c_pmax = sorted(copy.deepcopy(c_ps), key=lambda x:(x[1]), reverse=True)[0][0]  # 直接选择概率最大的社区作为i节点划分的社区
+#        if i_c == c_pmax:
+#            node_cps[i] = c_ps #通过attr调整
+#        else:
+#            node_cnos.append((i,i_c)) #通过U=U+0.5调整
 
 
       
