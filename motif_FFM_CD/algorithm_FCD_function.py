@@ -28,8 +28,8 @@ import FuzAg_function as FuzAg_fuc
 # c: 划分社区数
 # NP: 种群中个体数
 # adj: (加权)网络邻接矩阵
-# return: para_pop, para_fit 返回当前进化后的种群和适应的函数值
 # Q_flag: 选择的模块度函数 Q_flag: 0:Q 1:Qg 2:Qc_FCD 3:Qc_OCD 4:Qov 
+# return: para_pop, para_fit 返回当前进化后的种群和适应的函数值
 # =============================================================================
 def SOSFCD(pop, fit_values, n, c, NP, adj, Q_flag):
     # Mutualism【互利共生】
