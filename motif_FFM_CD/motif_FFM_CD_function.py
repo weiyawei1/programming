@@ -15,6 +15,7 @@ import networkx as nx
 import copy
 import math
 import time
+from matplotlib import pyplot as plt
 
 # 引入外部函数
 import find_motifs as fm
@@ -620,3 +621,37 @@ def pop_inherit(n, c, NP, Path):
     for i in range(NP):
         pop[:,:,i] = X
     return pop
+
+# =============================================================================
+#    convergence_process_show: 种群进化过程(社区划分收敛过程)展示
+#    nmm_best_Q_dict: 种群进化每代中的最优个体的模块度值
+#    Gen: 种群进化代数
+#    Q_flag: Q值
+#    nmmlist: nmm操作列表
+# =============================================================================
+def convergence_process_show(nmm_best_Q_dict,Gen,Q_flag,nmmlist):
+    plt.figure(figsize=(15,7),dpi=800)
+    mainColor = (42/256, 87/256, 145/256, 1) # R,G,B,透明度
+    plt.title("bestpop convergence process show")
+    plt.xlabel('Number of iterations',color=mainColor)
+    plt.ylabel('Best'+Q_flag,color=mainColor)             
+    plt.tick_params(axis='x',colors=mainColor)  # 坐标轴颜色
+    plt.tick_params(axis='y',colors=mainColor)                           
+    data_x = np.arange(1,Gen+1)    
+    plt.plot(
+            data_x,
+            nmm_best_Q_dict[nmmlist[0]],
+            data_x,
+            nmm_best_Q_dict[nmmlist[1]],
+            data_x,
+            nmm_best_Q_dict[nmmlist[2]],
+            data_x,
+            nmm_best_Q_dict[nmmlist[3]],
+            marker='.',
+            color=mainColor,
+            lineWidth=2
+            )                                                
+    plt.grid(True) #设置背景栅格
+#    plt.show() # 显示图形  
+#    plt.savefig('image/'+'bestpop_convergence_process.png',dpi=800)
+        

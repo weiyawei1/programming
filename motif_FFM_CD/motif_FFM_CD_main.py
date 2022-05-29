@@ -44,7 +44,7 @@ func_path = r"data/功能网络"
 brain47_network = func_path + r'/brain47.txt'
 
 # 选择网络
-network = lesmis_network
+network = karate_network
 G1 = nx.read_edgelist(network,create_using=nx.Graph())
 G1 = G1.to_undirected()
 
@@ -60,8 +60,8 @@ edge_all = Gi.get_edgelist()
 # =============================================================================
 n=G1.number_of_nodes()
 NP = 100
-c = 5  #社区的真实划分数
-Gen = 1000  #进化代数
+c = 2  #社区的真实划分数
+Gen = 100  #进化代数
 threshold_value = 0.25  #阈值
 # 各标记列表
 Mlist = {1:"M1",2:"M2",3:"M3",4:"M4",5:"M5",6:"M6",7:"M7",8:"M8"} #模体选择列表
@@ -71,7 +71,7 @@ nmmlist = {1:"NOMM",2:"NMM",3:"MNMM",4:"NWMM"} # nmm操作列表
 M_flag = Mlist[1]
 Q_flag = Qlist[3] # 模块度函数 Qc
 # 独立运行运行次数
-Independent_Runs = 11 # 本次实验独立运行次数
+Independent_Runs = 1 # 本次实验独立运行次数
  
 # =============================================================================
 # 构建基于模体M1的加权网络
@@ -93,10 +93,10 @@ motif_adj = motif_adj.todense()
 # 获得基于模体M1的，每条边参与构建的模体集合(点集与边集)
 # =============================================================================
 g = nx.Graph()
+edge_dict = {}
 # 3阶模体
 g.add_nodes_from([1, 2, 3])
 g.add_edges_from([(1, 2), (2, 3), (3, 1)])  # 连通
-edge_dict = {}
 for edge in edge_all:
     Node_set,edge_set=fm.edge_in_motif_list(G2, g, edge, directed=False, weighted=False)
     if len(Node_set) == 0:
@@ -131,12 +131,12 @@ while (run < Independent_Runs):
     func.fit_Qs(fit_values,pop,adj,n,c,NP,Q_flag)   #适应度函数值计算 
     
     # 初始化NMi
-    # nmilist = [] # 用于保存每一代的NMI值
-    # # 获取真实社区划分列表
-    # real_mem = []
-    # with open(path + "/real/" + 'dolphins_groundtruth.txt', mode='r',encoding='UTF-8') as f:
-    #     real_mem = list(map(int,f.read().splitlines()))
-    
+#    nmilist = [] # 用于保存每一代的NMI值
+#    # 获取真实社区划分列表
+    real_mem = []
+    with open(path + "/real/" + 'karate_groundtruth_2.txt', mode='r',encoding='UTF-8') as f:
+         real_mem = list(map(int,f.read().splitlines()))
+
     #有偏操作
     # bias_pop = func.bias_init_pop(pop, n, c, NP, adj) #对初始化后的种群进行有偏操作
     # bias_fit_values = []
@@ -152,6 +152,7 @@ while (run < Independent_Runs):
     # =============================================================================
     break_falg = 0
     success_falg = 0
+    nmm_best_Q_dict = {} # 用于保存历史最优Q值]
     nmm_index = 0
     for key in range(4,0,-1):
         nmm_flag = nmmlist[key]
@@ -162,6 +163,7 @@ while (run < Independent_Runs):
             pop_best_history = np.zeros((c,n,Gen)) # 用于保存历史最优的个体记录
             best_in_history_Q = [] # 用于保存历史最优Q值]
             tmp_pop,tmp_fit =  copy.deepcopy(pop),copy.deepcopy(fit_values)
+            
             for gen in tqdm(range(Gen)):
                 # SOSFCD算法
                 (new_pop, new_fit) = alg_func.SOSFCD(tmp_pop, tmp_fit, n, c, NP, adj,Q_flag)
@@ -191,21 +193,22 @@ while (run < Independent_Runs):
                     print("break")
                     break
     
-                # nmi=ig.compare_communities(real_mem, membership_c, method='nmi', remove_none=False)    
+                nmi=ig.compare_communities(real_mem, membership_c, method='nmi', remove_none=False)    
 
                 if (gen+1) % Gen ==0:
                     print("#####"+ M_flag +"_SOSFCD_" + Q_flag + "_" + nmm_flag + "_#####")
                     print("gen=",gen+1)
                     print("c_count=",len(set(membership_c)))
                     print("membership_c=",membership_c)
-                    # print("NMI=",nmi)
+                    print("NMI=",nmi)
                     print("best_"+ Q_flag +"_"+ nmm_flag +"=",best_Q)
                     print("better_number={}".format(better_number))
                     break_falg = 0
-                    Qs_history_NMM_dict[Q_flag +"_"+ nmm_flag] = best_Q
+                    Qs_history_NMM_dict[Q_flag +"_"+ nmm_flag] = best_Q #保存最优值
                     nmm_index+=1
             #跳出多次循环
             if break_falg == 0:
+                nmm_best_Q_dict[nmm_flag] = best_in_history_Q
                 break
         end = time.process_time()
         if break_falg == 1:
@@ -215,15 +218,17 @@ while (run < Independent_Runs):
         if nmm_index == 4:
             success_falg =1
     if success_falg == 1:
+        # 画图
+        func.convergence_process_show(nmm_best_Q_dict,Gen,Q_flag,nmmlist) #画出种群收敛过程
         # break
         print("#####################running is {0} suceess!#####################".format(run))
         # 保持数据到文件
-        logs_path = r"./logs/" + "lesmis/" + str(c)+"_" +str(Q_flag) + "_log.txt"        
-        with open(logs_path, mode='a+',encoding='UTF-8') as log_f:
-            log_f.writelines("============run[" + str(run) + "]==============\n")
-            for key in range(4,0,-1):
-                nmm = nmmlist[key]
-                log_f.writelines(nmm + "=" + str(Qs_history_NMM_dict[Q_flag +"_"+ nmm])+"\n")
+        logs_path = r"./logs/" + "karate/" + str(c)+"_" +str(Q_flag) + "_log.txt"        
+#        with open(logs_path, mode='a+',encoding='UTF-8') as log_f:
+#            log_f.writelines("============run[" + str(run) + "]==============\n")
+#            for key in range(4,0,-1):
+#                nmm = nmmlist[key]
+#                log_f.writelines(nmm + "=" + str(Qs_history_NMM_dict[Q_flag +"_"+ nmm])+"\n")
     run+=1
     
 #    # =============================================================================
@@ -276,8 +281,8 @@ while (run < Independent_Runs):
 #                print("Operattion failed:{}".format(e.strerror))
 #    
 #    
-    
-    
+
+
     
     
     
